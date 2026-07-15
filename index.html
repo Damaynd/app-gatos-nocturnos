@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Metro nocturno Santiago | Observatorio H3-8</title>
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="sidebar" aria-label="Panel analítico">
+        <header class="brand">
+          <p class="eyebrow">Santiago · H3-8 · DTPM 2024-2025</p>
+          <h1>Observatorio de demanda nocturna no Metro</h1>
+          <p class="lead">
+            Hipótesis: la demanda nocturna no Metro aumenta en zonas con dependencia
+            de transporte público, intensidad urbana y relación funcional con la red Metro.
+          </p>
+        </header>
+
+        <section class="kpis" aria-label="Indicadores principales">
+          <article>
+            <span id="kpiPriorityCells">--</span>
+            <small>celdas prioritarias</small>
+          </article>
+          <article>
+            <span id="kpiPriorityPeople">--</span>
+            <small>personas en prioridad</small>
+          </article>
+          <article>
+            <span id="kpiPriorityTp">--</span>
+            <small>usuarios TP censales</small>
+          </article>
+          <article>
+            <span id="kpiPriorityDemand">--</span>
+            <small>viajes/día no Metro</small>
+          </article>
+        </section>
+
+        <section class="panel-section">
+          <h2>Capa principal</h2>
+          <div class="segmented" id="layerMode">
+            <button class="active" data-mode="priority">Prioridad</button>
+            <button data-mode="demand">Demanda</button>
+            <button data-mode="rate">Tasa</button>
+            <button data-mode="access">Acceso</button>
+            <button data-mode="lisa">LISA</button>
+            <button data-mode="beneficiaries">Beneficiarios</button>
+            <button data-mode="ols">OLS</button>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h2>Periodo operativo</h2>
+          <div class="segmented compact" id="scenarioMode">
+            <button class="active" data-scenario="total">Promedio</button>
+            <button data-scenario="laboral">Laboral</button>
+            <button data-scenario="fin_semana">Fin de semana</button>
+          </div>
+        </section>
+
+        <section class="panel-section toggles">
+          <h2>Capas de contexto</h2>
+          <label><input type="checkbox" id="toggleMetro" checked /> Estaciones Metro</label>
+          <label><input type="checkbox" id="toggleOD" checked /> Corredores OD</label>
+          <label><input type="checkbox" id="toggleComunas" checked /> Límites comunales</label>
+          <label><input type="checkbox" id="togglePriorityOnly" /> Sólo celdas prioritarias</label>
+          <div class="segmented compact" id="odLimitMode">
+            <button data-od-limit="10">Top 10</button>
+            <button data-od-limit="20">Top 20</button>
+            <button class="active" data-od-limit="30">Top 30</button>
+          </div>
+          <label class="slider-label">
+            Opacidad H3
+            <input type="range" id="opacitySlider" min="25" max="95" value="76" />
+          </label>
+        </section>
+
+        <section class="panel-section">
+          <h2>Zonas contiguas</h2>
+          <div id="clusterList" class="cluster-list"></div>
+        </section>
+      </section>
+
+      <section class="map-wrap" aria-label="Mapa interactivo">
+        <div id="map">
+          <svg id="mapSvg" role="img" aria-label="Mapa H3-8 de Santiago">
+            <defs>
+              <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="2.6" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <rect id="mapBackground" x="0" y="0" width="100%" height="100%"></rect>
+            <g id="mapViewport">
+              <g id="comunaGroup"></g>
+              <g id="h3Group"></g>
+              <g id="odGroup"></g>
+              <g id="metroGroup"></g>
+              <g id="stationGroup"></g>
+            </g>
+          </svg>
+          <div id="hoverTooltip" class="floating-tooltip"></div>
+        </div>
+
+        <aside class="detail-panel" aria-live="polite">
+          <div class="detail-header">
+            <p class="eyebrow">Celda o selección</p>
+            <h2 id="detailTitle">Panorama metropolitano</h2>
+          </div>
+          <div class="detail-grid" id="detailGrid"></div>
+          <div class="detail-text" id="detailText"></div>
+          <div class="selection-actions">
+            <button id="clearSelection">Limpiar selección</button>
+            <button id="zoomPriority">Ver prioridad</button>
+          </div>
+        </aside>
+
+        <div class="legend" id="legend"></div>
+      </section>
+    </main>
+
+    <script src="src/app.js"></script>
+  </body>
+</html>
