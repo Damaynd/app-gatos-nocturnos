@@ -49,15 +49,31 @@ const OD_COLORS = [
   "#ff8fab",
 ];
 
+const DECISION_COLORS = {
+  pilot: "#ff4fb8",
+  feeder: "#ff3b30",
+  structure: "#ffd166",
+  context: "#14101c",
+};
+
+const DECISION_LABELS = {
+  pilot: "Piloto Metro nocturno",
+  feeder: "Alimentador nocturno",
+  structure: "Estructura de demanda",
+};
+
+const DECISION_MODES = new Set(["decision", "pilot", "feeder", "structure"]);
+
 const state = {
-  mode: "priority",
+  mode: "decision",
   scenario: "total",
-  opacity: 0.76,
-  odLimit: 30,
+  opacity: 0.72,
+  odLimit: 10,
   activeODRank: null,
   selectedIds: new Set(),
   featureById: new Map(),
   elementById: new Map(),
+  allFeatures: [],
   odFeatures: [],
   summary: null,
   projectedBounds: null,
@@ -86,7 +102,11 @@ const PROJ_COS = Math.cos((-33.45 * Math.PI) / 180);
 function number(value, decimals = 0) {
   const n = Number(value);
   if (!Number.isFinite(n)) return "--";
-  return decimals ? fmt1.format(n) : fmt0.format(n);
+  if (!decimals) return fmt0.format(n);
+  return new Intl.NumberFormat("es-CL", {
+    maximumFractionDigits: decimals,
+    minimumFractionDigits: decimals,
+  }).format(n);
 }
 
 function pct(value, decimals = 0) {
@@ -165,6 +185,88 @@ function metricLabel() {
   return "viajes promedio/día";
 }
 
+function textKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isNearMetro(p) {
+  const dist = Number(p.dist_metro_m);
+  return Number(p.tiene_metro_1000m) === 1 || Number(p.n_estaciones_riel) > 0 || (Number.isFinite(dist) && dist <= 1000);
+}
+
+function isHighDemand(p) {
+  const metric = metricForScenario();
+  const value = Number(p[metric]);
+  const q = state.summary?.metricas?.[metric];
+  const label = textKey(p.nivel_demanda_h3);
+  return label.includes("alta demanda") || label.includes("muy alta") || (q && Number.isFinite(value) && value >= q.p90);
+}
+
+function isVeryHighDemand(p) {
+  const metric = metricForScenario();
+  const value = Number(p[metric]);
+  const q = state.summary?.metricas?.[metric];
+  return textKey(p.nivel_demanda_h3).includes("muy alta") || (q && Number.isFinite(value) && value >= q.p95);
+}
+
+function decisionProfile(feature) {
+  const p = feature.properties;
+  const category = textKey(p.categoria_prioridad);
+  const lisa = String(p.lisa_cluster || "");
+  const nearMetro = isNearMetro(p);
+  const highDemand = isHighDemand(p);
+  const veryHighDemand = isVeryHighDemand(p);
+  const hasStation = Number(p.n_estaciones_riel) > 0;
+  const pilotScore = Number(p.score_piloto_metro);
+  const feederScore = Number(p.score_brecha_cobertura);
+  const lisaHot = lisa === "HH";
+  const lisaBridge = lisa === "LH" || lisa === "HL";
+  const pilot =
+    nearMetro &&
+    highDemand &&
+    (hasStation || lisaHot || category.includes("candidato") || category.includes("critica") || pilotScore >= 0.82);
+  const feeder =
+    !nearMetro &&
+    highDemand &&
+    (category.includes("brecha") || lisaHot || lisaBridge || feederScore >= 0.8);
+  const structure = lisaHot || veryHighDemand || (highDemand && (pilotScore >= 0.86 || feederScore >= 0.84));
+  if (!pilot && !feeder && !structure) return null;
+  const kind = pilot ? "pilot" : feeder ? "feeder" : "structure";
+  return {
+    kind,
+    pilot,
+    feeder,
+    structure,
+    label: DECISION_LABELS[kind],
+    color: DECISION_COLORS[kind],
+  };
+}
+
+function featureMatchesMode(feature, mode = state.mode) {
+  const profile = decisionProfile(feature);
+  if (mode === "decision") return Boolean(profile);
+  if (mode === "pilot") return profile?.pilot === true;
+  if (mode === "feeder") return profile?.feeder === true;
+  if (mode === "structure") return profile?.structure === true;
+  if (mode === "lisa") return ["HH", "LH", "HL"].includes(String(feature.properties.lisa_cluster || ""));
+  return Number(feature.properties.es_celda_prioritaria) === 1;
+}
+
+function featuresForMode(mode = state.mode) {
+  return state.allFeatures.filter((feature) => featureMatchesMode(feature, mode));
+}
+
+function modeTitle(mode = state.mode) {
+  if (mode === "pilot") return "Piloto Metro nocturno";
+  if (mode === "feeder") return "Alimentador nocturno";
+  if (mode === "structure") return "Estructura de demanda";
+  if (mode === "lisa") return "Clusters LISA relevantes";
+  return "Vista ejecutiva";
+}
+
 function colorRamp(value, metric, palette) {
   const q = state.summary?.metricas?.[metric];
   const n = Number(value);
@@ -199,6 +301,14 @@ function accessColor(p) {
 function fillColor(feature) {
   const p = feature.properties;
   const metric = metricForScenario();
+  if (DECISION_MODES.has(state.mode)) {
+    const profile = decisionProfile(feature);
+    if (!profile) return DECISION_COLORS.context;
+    if (state.mode === "pilot") return profile.pilot ? DECISION_COLORS.pilot : DECISION_COLORS.context;
+    if (state.mode === "feeder") return profile.feeder ? DECISION_COLORS.feeder : DECISION_COLORS.context;
+    if (state.mode === "structure") return profile.structure ? DECISION_COLORS.structure : DECISION_COLORS.context;
+    return profile.color;
+  }
   if (state.mode === "priority") return PRIORITY_COLORS[p.categoria_prioridad] || "#465057";
   if (state.mode === "demand") {
     return colorRamp(p[metric], metric, ["#15111d", "#33223f", "#6f2dbd", "#f72585", "#ffd166", "#ff3b30"]);
@@ -233,13 +343,23 @@ function styleH3Element(el, feature) {
   const p = feature.properties;
   const isSelected = state.selectedIds.has(p.h3_cell_id);
   const priorityOnly = document.getElementById("togglePriorityOnly")?.checked;
+  const decisionMode = DECISION_MODES.has(state.mode) || state.mode === "lisa";
+  const isVisibleDecision = featureMatchesMode(feature);
   const isPriority = Number(p.es_celda_prioritaria) === 1;
-  const muted = priorityOnly && !isPriority;
+  const muted = priorityOnly && !(decisionMode ? isVisibleDecision : isPriority);
   el.setAttribute("fill", fillColor(feature));
-  el.setAttribute("fill-opacity", muted ? 0.035 : state.opacity);
-  el.setAttribute("stroke", isSelected ? "#ffd166" : isPriority ? "rgba(255,143,171,0.72)" : "rgba(255,79,184,0.2)");
-  el.setAttribute("stroke-width", isSelected ? "2.4" : isPriority ? "0.7" : "0.35");
-  el.setAttribute("opacity", muted ? "0.16" : "1");
+  if (decisionMode) {
+    el.setAttribute("fill-opacity", muted ? 0.02 : isVisibleDecision ? state.opacity : 0.055);
+    el.setAttribute("stroke", isSelected ? "#f9f871" : isVisibleDecision ? "rgba(255,255,255,0.58)" : "rgba(255,79,184,0.12)");
+    el.setAttribute("stroke-width", isSelected ? "2.5" : isVisibleDecision ? "0.72" : "0.22");
+    el.setAttribute("opacity", muted ? "0.08" : "1");
+  } else {
+    el.setAttribute("fill-opacity", muted ? 0.035 : state.opacity);
+    el.setAttribute("stroke", isSelected ? "#ffd166" : isPriority ? "rgba(255,143,171,0.72)" : "rgba(255,79,184,0.2)");
+    el.setAttribute("stroke-width", isSelected ? "2.4" : isPriority ? "0.7" : "0.35");
+    el.setAttribute("opacity", muted ? "0.16" : "1");
+  }
+  el.dataset.recommendation = decisionProfile(feature)?.kind || "context";
   el.setAttribute("vector-effect", "non-scaling-stroke");
 }
 
@@ -298,23 +418,39 @@ function textColorForBackground(hex) {
   return luminance > 0.55 ? "#120712" : "#fff7fb";
 }
 
+function recommendationReason(feature) {
+  const p = feature.properties;
+  const profile = decisionProfile(feature);
+  if (!profile) return "Contexto urbano: no aparece como prioridad operativa bajo los criterios actuales.";
+  if (profile.kind === "pilot") {
+    return "Candidato a piloto Metro: alta demanda nocturna cerca de estación o dentro de cluster LISA de alta actividad.";
+  }
+  if (profile.kind === "feeder") {
+    return "Candidato a alimentador nocturno: demanda relevante fuera del radio caminable de 1000 m de Metro.";
+  }
+  return "Núcleo estructural: cluster LISA o demanda muy alta que ayuda a ordenar la red nocturna.";
+}
+
 function tooltipHtml(p) {
+  const feature = state.featureById.get(p.h3_cell_id) || { properties: p };
+  const profile = decisionProfile(feature);
   const metric = metricForScenario();
   const olsRow = state.mode === "ols"
     ? `<span>Residuo OLS contextual</span><b>${number(p.residuos_ols_h3, 2)}</b>`
     : "";
-  const tagColor = categoryTagColor(p.categoria_prioridad);
+  const tagColor = profile?.color || categoryTagColor(p.categoria_prioridad);
   return `
     <div class="tooltip-card">
-      <span class="tag" style="background:${tagColor};color:${textColorForBackground(tagColor)}">${p.categoria_prioridad_label || p.categoria_prioridad || "Sin categoría"}</span>
+      <span class="tag" style="background:${tagColor};color:${textColorForBackground(tagColor)}">${profile?.label || p.categoria_prioridad_label || p.categoria_prioridad || "Sin categoría"}</span>
       <h3>${p.comuna || "Comuna no asignada"} · H3 ${p.h3_short}</h3>
       <div class="tooltip-table">
+        <span>Recomendación</span><b>${profile?.label || "Contexto"}</b>
         <span>${metricLabel()}</span><b>${number(p[metric], 1)}</b>
         <span>Población censal</span><b>${number(p.poblacion_total)}</b>
-        <span>Usuarios TP censales</span><b>${number(p.beneficiarios_tp)}</b>
-        <span>Origen / 1000 pers.</span><b>${number(p.origen_por_1000_personas, 1)}</b>
         <span>Distancia Metro</span><b>${number(p.dist_metro_m)} m</b>
         <span>LISA</span><b>${p.lisa_cluster || "Sin dato"}</b>
+        <span>Score piloto</span><b>${number(p.score_piloto_metro, 2)}</b>
+        <span>Score brecha</span><b>${number(p.score_brecha_cobertura, 2)}</b>
         ${olsRow}
       </div>
     </div>`;
@@ -378,7 +514,47 @@ function updateDetailForAggregate(title, stats, contextText) {
   document.getElementById("detailText").innerHTML = contextText;
 }
 
+function decisionSummaryText(mode, features) {
+  const pilotCount = featuresForMode("pilot").length;
+  const feederCount = featuresForMode("feeder").length;
+  const structureCount = featuresForMode("structure").length;
+  if (mode === "pilot") {
+    return `
+      Prioriza celdas de alta demanda cerca de Metro, con estaciones críticas, candidatos de operación o clusters LISA HH.
+      Útil para escoger dónde probar extensión horaria con menor inversión inicial.
+    `;
+  }
+  if (mode === "feeder") {
+    return `
+      Prioriza celdas con demanda relevante fuera del radio caminable de 1000 m.
+      Estas zonas sugieren servicios alimentadores nocturnos hacia estaciones o ejes troncales.
+    `;
+  }
+  if (mode === "structure") {
+    return `
+      Muestra núcleos LISA y demanda muy alta que estructuran los viajes nocturnos.
+      Sirve para entender dónde se concentra la presión de red antes de decidir la tecnología.
+    `;
+  }
+  if (mode === "lisa") {
+    return `
+      Enfoca clusters LISA HH, LH y HL para separar concentración territorial, bordes de alta demanda y zonas atípicas.
+      Las celdas no significativas quedan como fondo.
+    `;
+  }
+  return `
+    <b>${features.length}</b> zonas sugeridas. Hay <b>${pilotCount}</b> con señal de piloto Metro,
+    <b>${feederCount}</b> con señal de alimentador y <b>${structureCount}</b> con señal estructural
+    LISA/demanda. Las señales pueden superponerse; el color muestra la acción principal.
+  `;
+}
+
 function updateDefaultDetail() {
+  const features = featuresForMode();
+  if (DECISION_MODES.has(state.mode) || state.mode === "lisa") {
+    updateDetailForAggregate(modeTitle(), aggregate(features), decisionSummaryText(state.mode, features));
+    return;
+  }
   const total = state.summary.totales;
   const priority = state.summary.prioritarias;
   const metric = metricForScenario();
@@ -392,16 +568,12 @@ function updateDefaultDetail() {
 function updateDetailForFeature(feature) {
   const p = feature.properties;
   const stats = aggregate([feature]);
-  const intervention =
-    p.categoria_prioridad === "Brecha alimentador nocturno" || p.categoria_prioridad === "Brecha fuera de 1000 m"
-      ? "La lectura principal es de cobertura: alta actividad fuera del radio caminable de 1000 m, candidata a alimentador nocturno o conexión complementaria."
-      : p.categoria_prioridad === "Candidato piloto Metro" || p.categoria_prioridad === "Estación crítica"
-        ? "La lectura principal es de operación: alta demanda asociada a estaciones o tramos existentes, candidata a piloto Metro nocturno focalizado."
-        : "La celda aporta contexto territorial, pero no aparece como prioridad fuerte bajo los criterios actuales.";
+  const profile = decisionProfile(feature);
   updateDetailForAggregate(`${p.comuna || "Santiago"} · H3 ${p.h3_short}`, stats, `
-    <b>${p.categoria_prioridad_label || p.categoria_prioridad || "Sin categoría"}.</b>
-    ${intervention}
-    LISA: <b>${p.lisa_cluster || "sin dato"}</b>; distancia a Metro: <b>${number(p.dist_metro_m)} m</b>.
+    <b>${profile?.label || p.categoria_prioridad_label || p.categoria_prioridad || "Contexto"}.</b>
+    ${recommendationReason(feature)}
+    LISA: <b>${p.lisa_cluster || "sin dato"}</b>; distancia a Metro: <b>${number(p.dist_metro_m)} m</b>;
+    score piloto: <b>${number(p.score_piloto_metro, 2)}</b>; score brecha: <b>${number(p.score_brecha_cobertura, 2)}</b>.
   `);
 }
 
@@ -413,9 +585,13 @@ function updateDetailForSelection() {
   const features = [...state.selectedIds].map((id) => state.featureById.get(id)).filter(Boolean);
   const stats = aggregate(features);
   const nearShare = stats.celdas ? (stats.cerca1000 / stats.celdas) * 100 : 0;
+  const pilotCount = features.filter((feature) => decisionProfile(feature)?.pilot).length;
+  const feederCount = features.filter((feature) => decisionProfile(feature)?.feeder).length;
+  const structureCount = features.filter((feature) => decisionProfile(feature)?.structure).length;
   updateDetailForAggregate(`Selección · ${stats.celdas} celdas`, stats, `
     En la selección, <b>${pct(nearShare, 1)}</b> de las celdas está a 1000 m o menos de una estación.
-    La demanda se separa entre potencialmente servible por Metro y brechas que sugieren alimentadores nocturnos.
+    Lectura operativa: <b>${pilotCount}</b> piloto Metro, <b>${feederCount}</b> alimentador nocturno y
+    <b>${structureCount}</b> estructura de demanda.
   `);
 }
 
@@ -697,7 +873,20 @@ function renderLegend() {
   const legend = document.getElementById("legend");
   let title = "";
   let rows = [];
-  if (state.mode === "priority") {
+  if (DECISION_MODES.has(state.mode)) {
+    title = state.mode === "decision" ? "Recomendación operativa" : modeTitle();
+    rows = state.mode === "decision"
+      ? [
+          ["Piloto Metro", DECISION_COLORS.pilot],
+          ["Alimentador nocturno", DECISION_COLORS.feeder],
+          ["Núcleo de demanda", DECISION_COLORS.structure],
+          ["Contexto", DECISION_COLORS.context],
+        ]
+      : [
+          ["Zonas foco", DECISION_COLORS[state.mode]],
+          ["Contexto", DECISION_COLORS.context],
+        ];
+  } else if (state.mode === "priority") {
     title = "Prioridad territorial";
     rows = Object.entries(PRIORITY_COLORS);
   } else if (state.mode === "demand") {
@@ -725,12 +914,15 @@ function renderLegend() {
 }
 
 function buildKpis() {
-  const p = state.summary.prioritarias;
+  const visibleFeatures = DECISION_MODES.has(state.mode) || state.mode === "lisa"
+    ? featuresForMode()
+    : state.allFeatures.filter((feature) => Number(feature.properties.es_celda_prioritaria) === 1);
+  const p = visibleFeatures.length ? aggregate(visibleFeatures) : state.summary.prioritarias;
   const metric = metricForScenario();
   document.getElementById("kpiPriorityCells").textContent = number(p.celdas);
-  document.getElementById("kpiPriorityPeople").textContent = number(p.poblacion);
-  document.getElementById("kpiPriorityTp").textContent = number(p.beneficiarios_tp);
-  document.getElementById("kpiPriorityDemand").textContent = number(p[metric] ?? p.viajes_total_dia_promedio, 1);
+  document.getElementById("kpiPriorityPeople").textContent = number(p[metric] ?? p.viajes_total_dia_promedio, 1);
+  document.getElementById("kpiPriorityTp").textContent = number(p.demanda_potencial_metro, 1);
+  document.getElementById("kpiPriorityDemand").textContent = number(p.demanda_potencial_alimentador, 1);
 }
 
 function buildClusterList() {
@@ -756,6 +948,7 @@ function selectedFeaturesByCluster(clusterId) {
 }
 
 function boundsForFeatures(features) {
+  if (!features.length) return state.projectedBounds;
   return features.reduce((bounds, feature) => geometryBounds(feature.geometry, bounds), {
     minX: Infinity,
     minY: Infinity,
@@ -774,7 +967,7 @@ function selectCluster(clusterId) {
 }
 
 function zoomPriority() {
-  const features = [...state.featureById.values()].filter((feature) => Number(feature.properties.es_celda_prioritaria) === 1);
+  const features = featuresForMode(state.mode === "lisa" ? "lisa" : "decision");
   fitProjectedBounds(boundsForFeatures(features), 0.08);
 }
 
@@ -785,6 +978,9 @@ function setupControls() {
       btn.classList.add("active");
       state.mode = btn.dataset.mode;
       refreshH3Styles();
+      buildKpis();
+      if (state.selectedIds.size) updateDetailForSelection();
+      else updateDefaultDetail();
     });
   });
 
@@ -793,10 +989,6 @@ function setupControls() {
       document.querySelectorAll("#scenarioMode button").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       state.scenario = btn.dataset.scenario;
-      document.querySelectorAll("#layerMode button").forEach((b) => {
-        b.classList.toggle("active", b.dataset.mode === "demand");
-      });
-      state.mode = "demand";
       refreshH3Styles();
       buildKpis();
       if (state.selectedIds.size) updateDetailForSelection();
@@ -849,6 +1041,7 @@ async function init() {
     loadJson(DATA.summary),
   ]);
   state.summary = summary;
+  state.allFeatures = h3.features;
   state.odFeatures = od.features;
   state.projectedBounds = h3.features.reduce((bounds, feature) => geometryBounds(feature.geometry, bounds), {
     minX: Infinity,

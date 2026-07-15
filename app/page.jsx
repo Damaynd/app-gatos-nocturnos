@@ -41,47 +41,49 @@ export default function Home() {
           <p className="eyebrow">Santiago · H3-8 · DTPM 2024-2025</p>
           <h1>Gatos Nocturnos</h1>
           <p className="lead">
-            Hipótesis: la demanda nocturna no Metro aumenta en zonas con dependencia de transporte público, intensidad
-            urbana y relación funcional con la red Metro.
+            Mapa ejecutivo para priorizar pilotos de Metro nocturno, alimentadores y nodos de demanda fuera del horario
+            operativo.
           </p>
           <p className="project-statement">
-            Proyecto para el curso de Ciencia de Datos Geográficos, desarrollado en su mayor parte con apoyo de IA y
-            revisión humana.
+            Proyecto para Ciencia de Datos Geográficos, desarrollado principalmente con apoyo de IA y revisión humana.
           </p>
         </header>
 
         <section className="kpis" aria-label="Indicadores principales">
           <article>
             <span id="kpiPriorityCells">--</span>
-            <small>celdas prioritarias</small>
+            <small>zonas sugeridas</small>
           </article>
           <article>
             <span id="kpiPriorityPeople">--</span>
-            <small>personas en prioridad</small>
+            <small>viajes priorizados</small>
           </article>
           <article>
             <span id="kpiPriorityTp">--</span>
-            <small>usuarios TP censales</small>
+            <small>potencial Metro</small>
           </article>
           <article>
             <span id="kpiPriorityDemand">--</span>
-            <small>viajes/día no Metro</small>
+            <small>brecha alimentador</small>
           </article>
         </section>
 
         <section className="panel-section">
-          <h2>Capa principal</h2>
+          <h2>Pregunta de decisión</h2>
           <div className="segmented" id="layerMode">
-            <button className="active" data-mode="priority">
-              Prioridad
+            <button className="active" data-mode="decision">
+              Vista ejecutiva
             </button>
-            <button data-mode="demand">Demanda</button>
-            <button data-mode="rate">Tasa</button>
-            <button data-mode="access">Acceso</button>
+            <button data-mode="pilot">Piloto Metro</button>
+            <button data-mode="feeder">Alimentador</button>
+            <button data-mode="structure">Estructura demanda</button>
             <button data-mode="lisa">LISA</button>
-            <button data-mode="beneficiaries">Beneficiarios</button>
-            <button data-mode="ols">OLS</button>
           </div>
+        </section>
+
+        <section className="decision-brief" aria-label="Lectura operativa">
+          <strong>Lectura rápida</strong>
+          <span>Rosado: piloto Metro. Rojo: alimentador nocturno. Amarillo: núcleo estructural de demanda.</span>
         </section>
 
         <section className="panel-section">
@@ -96,7 +98,7 @@ export default function Home() {
         </section>
 
         <section className="panel-section toggles">
-          <h2>Capas de contexto</h2>
+          <h2>Capas de apoyo</h2>
           <label>
             <input type="checkbox" id="toggleMetro" defaultChecked /> Estaciones Metro
           </label>
@@ -107,30 +109,27 @@ export default function Home() {
             <input type="checkbox" id="toggleComunas" defaultChecked /> Límites comunales
           </label>
           <label>
-            <input type="checkbox" id="togglePriorityOnly" /> Sólo celdas prioritarias
+            <input type="checkbox" id="togglePriorityOnly" /> Sólo zonas sugeridas
           </label>
           <div className="segmented compact" id="odLimitMode">
-            <button data-od-limit="10">Top 10</button>
+            <button className="active" data-od-limit="10">Top 10</button>
             <button data-od-limit="20">Top 20</button>
-            <button className="active" data-od-limit="30">
-              Top 30
-            </button>
+            <button data-od-limit="30">Top 30</button>
           </div>
           <label className="slider-label">
-            Opacidad H3
-            <input type="range" id="opacitySlider" min="25" max="95" defaultValue="76" />
+            Intensidad H3
+            <input type="range" id="opacitySlider" min="20" max="90" defaultValue="72" />
           </label>
         </section>
 
         <section className="panel-section">
-          <h2>Zonas contiguas</h2>
+          <h2>Áreas sugeridas</h2>
           <div id="clusterList" className="cluster-list"></div>
         </section>
       </section>
 
       <section className="map-wrap" aria-label="Mapa interactivo">
-        <PixelCat className="map-cat map-cat-left" />
-        <PixelCat className="map-cat map-cat-right" />
+        <PixelCat className="map-cat map-cat-watermark" />
         <div id="map">
           <svg id="mapSvg" role="img" aria-label="Mapa H3-8 de Santiago">
             <defs>
@@ -156,14 +155,14 @@ export default function Home() {
 
         <aside className="detail-panel" aria-live="polite">
           <div className="detail-header">
-            <p className="eyebrow">Celda o selección</p>
-            <h2 id="detailTitle">Panorama metropolitano</h2>
+            <p className="eyebrow">Lectura de decisión</p>
+            <h2 id="detailTitle">Dónde actuar primero</h2>
           </div>
           <div className="detail-grid" id="detailGrid"></div>
           <div className="detail-text" id="detailText"></div>
           <div className="selection-actions">
             <button id="clearSelection">Limpiar selección</button>
-            <button id="zoomPriority">Ver prioridad</button>
+            <button id="zoomPriority">Ver sugeridas</button>
           </div>
         </aside>
 
