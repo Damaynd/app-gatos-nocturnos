@@ -2,6 +2,26 @@
 
 import { useEffect } from "react";
 
+function PixelCat({ className = "" }) {
+  return (
+    <svg className={`pixel-cat ${className}`} viewBox="0 0 16 12" aria-hidden="true" shapeRendering="crispEdges">
+      <rect className="cat-glow" x="3" y="3" width="10" height="8" />
+      <rect className="cat-fur" x="4" y="4" width="8" height="6" />
+      <rect className="cat-fur" x="3" y="5" width="1" height="4" />
+      <rect className="cat-fur" x="12" y="5" width="1" height="4" />
+      <rect className="cat-fur" x="4" y="2" width="2" height="2" />
+      <rect className="cat-fur" x="10" y="2" width="2" height="2" />
+      <rect className="cat-tail" x="13" y="4" width="1" height="1" />
+      <rect className="cat-tail" x="14" y="3" width="1" height="1" />
+      <rect className="cat-tail" x="15" y="2" width="1" height="1" />
+      <rect className="cat-eye" x="6" y="6" width="1" height="1" />
+      <rect className="cat-eye" x="10" y="6" width="1" height="1" />
+      <rect className="cat-nose" x="8" y="7" width="1" height="1" />
+      <rect className="cat-collar" x="5" y="9" width="6" height="1" />
+    </svg>
+  );
+}
+
 export default function Home() {
   useEffect(() => {
     import("../src/app.js");
@@ -9,13 +29,24 @@ export default function Home() {
 
   return (
     <main className="app-shell">
+      <div className="night-pixels" aria-hidden="true">
+        <span className="pixel-star star-a"></span>
+        <span className="pixel-star star-b"></span>
+        <span className="pixel-star star-c"></span>
+        <span className="pixel-star star-d"></span>
+      </div>
       <section className="sidebar" aria-label="Panel analítico">
         <header className="brand">
+          <PixelCat className="brand-cat" />
           <p className="eyebrow">Santiago · H3-8 · DTPM 2024-2025</p>
-          <h1>Observatorio de demanda nocturna no Metro</h1>
+          <h1>Gatos Nocturnos</h1>
           <p className="lead">
             Hipótesis: la demanda nocturna no Metro aumenta en zonas con dependencia de transporte público, intensidad
             urbana y relación funcional con la red Metro.
+          </p>
+          <p className="project-statement">
+            Proyecto para el curso de Ciencia de Datos Geográficos, desarrollado en su mayor parte con apoyo de IA y
+            revisión humana.
           </p>
         </header>
 
@@ -98,6 +129,8 @@ export default function Home() {
       </section>
 
       <section className="map-wrap" aria-label="Mapa interactivo">
+        <PixelCat className="map-cat map-cat-left" />
+        <PixelCat className="map-cat map-cat-right" />
         <div id="map">
           <svg id="mapSvg" role="img" aria-label="Mapa H3-8 de Santiago">
             <defs>

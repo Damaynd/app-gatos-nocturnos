@@ -8,20 +8,20 @@ const DATA = {
 };
 
 const PRIORITY_COLORS = {
-  "Baja demanda local": "#263238",
-  "Demanda con acceso Metro": "#45b5d9",
-  "Brecha fuera de 1000 m": "#ffb36b",
-  "Candidato piloto Metro": "#1e8fb8",
-  "Brecha alimentador nocturno": "#e86f1d",
-  "Estación crítica": "#6531a6",
+  "Baja demanda local": "#17121f",
+  "Demanda con acceso Metro": "#ff4fb8",
+  "Brecha fuera de 1000 m": "#ffd166",
+  "Candidato piloto Metro": "#9d4edd",
+  "Brecha alimentador nocturno": "#ff3b30",
+  "Estación crítica": "#f72585",
 };
 
 const LISA_COLORS = {
-  HH: "#e66b1f",
-  LL: "#2ca987",
-  HL: "#756bb1",
-  LH: "#e3b51b",
-  "No significativo": "#dfe5e8",
+  HH: "#ff3b30",
+  LL: "#3a2f4f",
+  HL: "#9d4edd",
+  LH: "#ffd166",
+  "No significativo": "#211a2c",
 };
 
 const METRO_COLORS = {
@@ -37,15 +37,16 @@ const METRO_COLORS = {
 
 const OD_COLORS = [
   "#ff4d6d",
-  "#f77f00",
+  "#ff3b30",
   "#ffb703",
-  "#2ec4b6",
-  "#00a6fb",
-  "#5e60ce",
+  "#ff4fb8",
+  "#f72585",
+  "#9d4edd",
   "#9b5de5",
   "#f15bb5",
-  "#7bdff2",
-  "#80ed99",
+  "#ffd166",
+  "#c77dff",
+  "#ff8fab",
 ];
 
 const state = {
@@ -62,6 +63,7 @@ const state = {
   projectedBounds: null,
   viewBox: null,
   drag: null,
+  suppressClick: false,
 };
 
 const svg = document.getElementById("mapSvg");
@@ -176,22 +178,22 @@ function colorRamp(value, metric, palette) {
 
 function residualColor(value) {
   const n = Number(value);
-  if (!Number.isFinite(n)) return "#313a40";
-  if (n < -1.5) return "#2b5c9e";
-  if (n < -0.5) return "#75aadb";
-  if (n <= 0.5) return "#edf3f8";
-  if (n <= 1.5) return "#f5a45b";
-  return "#c7352e";
+  if (!Number.isFinite(n)) return "#211a2c";
+  if (n < -1.5) return "#5a287a";
+  if (n < -0.5) return "#9d4edd";
+  if (n <= 0.5) return "#211a2c";
+  if (n <= 1.5) return "#ffd166";
+  return "#ff3b30";
 }
 
 function accessColor(p) {
   const dist = Number(p.dist_metro_m);
-  if (Number(p.n_estaciones_riel) > 0) return "#673ab7";
-  if (!Number.isFinite(dist)) return "#4a545b";
-  if (dist <= 800) return "#2f9ed2";
-  if (dist <= 1000) return "#72c7df";
-  if (dist <= 2000) return "#ffb36b";
-  return "#d94801";
+  if (Number(p.n_estaciones_riel) > 0) return "#f72585";
+  if (!Number.isFinite(dist)) return "#2b2234";
+  if (dist <= 800) return "#9d4edd";
+  if (dist <= 1000) return "#c77dff";
+  if (dist <= 2000) return "#ffd166";
+  return "#ff3b30";
 }
 
 function fillColor(feature) {
@@ -199,28 +201,28 @@ function fillColor(feature) {
   const metric = metricForScenario();
   if (state.mode === "priority") return PRIORITY_COLORS[p.categoria_prioridad] || "#465057";
   if (state.mode === "demand") {
-    return colorRamp(p[metric], metric, ["#eef2f3", "#bcdce9", "#79bbd4", "#2b8cbe", "#fdae61", "#d7191c"]);
+    return colorRamp(p[metric], metric, ["#15111d", "#33223f", "#6f2dbd", "#f72585", "#ffd166", "#ff3b30"]);
   }
   if (state.mode === "rate") {
     return colorRamp(p.origen_por_1000_personas, "origen_por_1000_personas", [
-      "#f3effa",
-      "#d4c2eb",
-      "#b48ad8",
-      "#8856a7",
-      "#dd3497",
-      "#ae017e",
+      "#15111d",
+      "#3a2f4f",
+      "#7b2cbf",
+      "#9d4edd",
+      "#ff4fb8",
+      "#f72585",
     ]);
   }
   if (state.mode === "access") return accessColor(p);
   if (state.mode === "lisa") return LISA_COLORS[p.lisa_cluster] || "#dfe5e8";
   if (state.mode === "beneficiaries") {
     return colorRamp(p.beneficiarios_tp, "beneficiarios_tp", [
-      "#eef7f0",
-      "#cbeccf",
-      "#90d79c",
-      "#4caf62",
-      "#238b45",
-      "#005a32",
+      "#15111d",
+      "#2b1b35",
+      "#5a287a",
+      "#9d4edd",
+      "#ff4fb8",
+      "#ffd166",
     ]);
   }
   if (state.mode === "ols") return residualColor(p.residuos_ols_h3);
@@ -235,7 +237,7 @@ function styleH3Element(el, feature) {
   const muted = priorityOnly && !isPriority;
   el.setAttribute("fill", fillColor(feature));
   el.setAttribute("fill-opacity", muted ? 0.035 : state.opacity);
-  el.setAttribute("stroke", isSelected ? "#ffffff" : isPriority ? "rgba(255,255,255,0.66)" : "rgba(255,255,255,0.18)");
+  el.setAttribute("stroke", isSelected ? "#ffd166" : isPriority ? "rgba(255,143,171,0.72)" : "rgba(255,79,184,0.2)");
   el.setAttribute("stroke-width", isSelected ? "2.4" : isPriority ? "0.7" : "0.35");
   el.setAttribute("opacity", muted ? "0.16" : "1");
   el.setAttribute("vector-effect", "non-scaling-stroke");
@@ -288,14 +290,23 @@ function categoryTagColor(category) {
   return PRIORITY_COLORS[category] || "#9fb2bd";
 }
 
+function textColorForBackground(hex) {
+  const value = String(hex || "").replace("#", "");
+  if (value.length !== 6) return "#120712";
+  const [r, g, b] = [0, 2, 4].map((index) => parseInt(value.slice(index, index + 2), 16) / 255);
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance > 0.55 ? "#120712" : "#fff7fb";
+}
+
 function tooltipHtml(p) {
   const metric = metricForScenario();
   const olsRow = state.mode === "ols"
     ? `<span>Residuo OLS contextual</span><b>${number(p.residuos_ols_h3, 2)}</b>`
     : "";
+  const tagColor = categoryTagColor(p.categoria_prioridad);
   return `
     <div class="tooltip-card">
-      <span class="tag" style="background:${categoryTagColor(p.categoria_prioridad)}">${p.categoria_prioridad_label || p.categoria_prioridad || "Sin categoría"}</span>
+      <span class="tag" style="background:${tagColor};color:${textColorForBackground(tagColor)}">${p.categoria_prioridad_label || p.categoria_prioridad || "Sin categoría"}</span>
       <h3>${p.comuna || "Comuna no asignada"} · H3 ${p.h3_short}</h3>
       <div class="tooltip-table">
         <span>${metricLabel()}</span><b>${number(p[metric], 1)}</b>
@@ -421,7 +432,7 @@ function renderH3(features) {
     state.elementById.set(p.h3_cell_id, path);
     styleH3Element(path, feature);
     path.addEventListener("mouseenter", (event) => {
-      path.setAttribute("stroke", "#ffffff");
+      path.setAttribute("stroke", "#ffd166");
       path.setAttribute("stroke-width", "2.2");
       showTooltip(tooltipHtml(p), event);
       updateDetailForFeature(feature);
@@ -618,26 +629,65 @@ function setupMapNavigation() {
   }, { passive: false });
 
   svg.addEventListener("pointerdown", (event) => {
-    state.drag = { start: eventToSvgPoint(event), view: { ...state.viewBox } };
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const rect = svg.getBoundingClientRect();
+    state.drag = {
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      rect: { width: rect.width, height: rect.height },
+      view: { ...state.viewBox },
+      moved: false,
+    };
+    hideTooltip();
     mapEl.classList.add("dragging");
-    svg.setPointerCapture(event.pointerId);
+    try {
+      svg.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort across input devices.
+    }
   });
   svg.addEventListener("pointermove", (event) => {
     if (!state.drag) return;
-    const now = eventToSvgPoint(event);
-    state.viewBox.x = state.drag.view.x - (now[0] - state.drag.start[0]);
-    state.viewBox.y = state.drag.view.y - (now[1] - state.drag.start[1]);
+    event.preventDefault();
+    const clientDx = event.clientX - state.drag.startClientX;
+    const clientDy = event.clientY - state.drag.startClientY;
+    const svgDx = (clientDx / Math.max(state.drag.rect.width, 1)) * state.drag.view.w;
+    const svgDy = (clientDy / Math.max(state.drag.rect.height, 1)) * state.drag.view.h;
+    state.drag.moved = state.drag.moved || Math.hypot(clientDx, clientDy) > 3;
+    state.viewBox.x = state.drag.view.x - svgDx;
+    state.viewBox.y = state.drag.view.y - svgDy;
+    state.viewBox.w = state.drag.view.w;
+    state.viewBox.h = state.drag.view.h;
     applyViewBox();
   });
-  svg.addEventListener("pointerup", (event) => {
+  const finishDrag = (event) => {
+    if (!state.drag) return;
+    const moved = state.drag?.moved === true;
     state.drag = null;
+    state.suppressClick = moved;
     mapEl.classList.remove("dragging");
     try {
-      svg.releasePointerCapture(event.pointerId);
+      if (event?.pointerId !== undefined) svg.releasePointerCapture(event.pointerId);
     } catch {
       // Pointer capture may already be released by the browser.
     }
+    if (moved) window.setTimeout(() => { state.suppressClick = false; }, 0);
+  };
+  svg.addEventListener("pointerup", finishDrag);
+  svg.addEventListener("pointercancel", finishDrag);
+  window.addEventListener("pointerup", finishDrag);
+  window.addEventListener("pointercancel", finishDrag);
+  window.addEventListener("blur", finishDrag);
+  svg.addEventListener("lostpointercapture", () => {
+    state.drag = null;
+    mapEl.classList.remove("dragging");
   });
+  svg.addEventListener("click", (event) => {
+    if (!state.suppressClick) return;
+    event.preventDefault();
+    event.stopPropagation();
+    state.suppressClick = false;
+  }, true);
   svg.addEventListener("click", () => {
     if (!state.selectedIds.size) updateDefaultDetail();
   });
@@ -652,22 +702,22 @@ function renderLegend() {
     rows = Object.entries(PRIORITY_COLORS);
   } else if (state.mode === "demand") {
     title = `Demanda: ${metricLabel()}`;
-    rows = [["Baja", "#eef2f3"], ["Media", "#79bbd4"], ["Alta", "#fdae61"], ["Muy alta", "#d7191c"]];
+    rows = [["Baja", "#15111d"], ["Media", "#6f2dbd"], ["Alta", "#ffd166"], ["Muy alta", "#ff3b30"]];
   } else if (state.mode === "rate") {
     title = "Orígenes por 1000 personas";
-    rows = [["Baja", "#f3effa"], ["Media", "#b48ad8"], ["Alta", "#dd3497"], ["Muy alta", "#ae017e"]];
+    rows = [["Baja", "#15111d"], ["Media", "#7b2cbf"], ["Alta", "#ff4fb8"], ["Muy alta", "#f72585"]];
   } else if (state.mode === "access") {
     title = "Accesibilidad a Metro";
-    rows = [["Celda con estación", "#673ab7"], ["<= 800 m", "#2f9ed2"], ["800-1000 m", "#72c7df"], ["1000-2000 m", "#ffb36b"], ["> 2000 m", "#d94801"]];
+    rows = [["Celda con estación", "#f72585"], ["<= 800 m", "#9d4edd"], ["800-1000 m", "#c77dff"], ["1000-2000 m", "#ffd166"], ["> 2000 m", "#ff3b30"]];
   } else if (state.mode === "lisa") {
     title = "LISA";
     rows = Object.entries(LISA_COLORS);
   } else if (state.mode === "beneficiaries") {
     title = "Usuarios censales de transporte público";
-    rows = [["Bajo", "#eef7f0"], ["Medio", "#90d79c"], ["Alto", "#238b45"], ["Muy alto", "#005a32"]];
+    rows = [["Bajo", "#15111d"], ["Medio", "#5a287a"], ["Alto", "#ff4fb8"], ["Muy alto", "#ffd166"]];
   } else {
     title = "Residuo OLS contextual";
-    rows = [["Sobreestimado", "#2b5c9e"], ["Cercano a cero", "#edf3f8"], ["Subestimado", "#c7352e"]];
+    rows = [["Sobreestimado", "#5a287a"], ["Cercano a cero", "#211a2c"], ["Subestimado", "#ff3b30"]];
   }
   legend.innerHTML = `<h3>${title}</h3>${rows
     .map(([label, color]) => `<div class="legend-row"><span class="swatch" style="background:${color}"></span><span>${label}</span></div>`)
