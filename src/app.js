@@ -52,14 +52,8 @@ const OD_COLORS = [
 const DECISION_COLORS = {
   pilot: "#ff4fb8",
   feeder: "#ff3131",
-  structure: "#ffd166",
+  structure: "#ffb703",
   context: "#14101c",
-};
-
-const DECISION_PALETTES = {
-  pilot: ["#9d4edd", "#c77dff", "#ff4fb8", "#ff2fa3", "#fff05a", "#ffffff"],
-  feeder: ["#7b2cbf", "#f72585", "#ff4d6d", "#ff3131", "#ffb703", "#fff05a"],
-  structure: ["#4cc9f0", "#9d4edd", "#ff4fb8", "#ffd166", "#ffb703", "#fff05a"],
 };
 
 const DECISION_LABELS = {
@@ -222,16 +216,24 @@ function demandBand(p) {
   return metricBand(p[metricForScenario()], metricForScenario());
 }
 
-function paletteColor(kind, band) {
-  const palette = DECISION_PALETTES[kind] || [DECISION_COLORS[kind] || DECISION_COLORS.context];
-  return palette[Math.max(0, Math.min(palette.length - 1, Number(band) || 0))];
-}
-
 function glowForColor(hex, alpha = 0.76) {
   const value = String(hex || "").replace("#", "");
   if (value.length !== 6) return "rgba(255, 79, 184, 0.72)";
   const [r, g, b] = [0, 2, 4].map((index) => parseInt(value.slice(index, index + 2), 16));
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function lightProfile(intensity = 0) {
+  const level = Math.max(0, Math.min(5, Number(intensity) || 0));
+  return {
+    level,
+    minBrightness: (0.98 + level * 0.035).toFixed(2),
+    maxBrightness: (1.03 + level * 0.057).toFixed(2),
+    tightGlow: `${(1.2 + level * 0.42).toFixed(1)}px`,
+    wideGlow: `${(4.4 + level * 1.35).toFixed(1)}px`,
+    farGlow: `${(8 + level * 3.1).toFixed(1)}px`,
+    pulse: `${(5.2 - level * 0.38).toFixed(2)}s`,
+  };
 }
 
 function isNearMetro(p) {
@@ -339,7 +341,7 @@ function decisionProfile(feature) {
     pilot ? metricBand(pilotScore, "score_piloto_metro") : 0,
     feeder ? metricBand(feederScore, "score_brecha_cobertura") : 0,
   );
-  const color = paletteColor(kind, intensity);
+  const color = DECISION_COLORS[kind];
   return {
     kind,
     pilot,
@@ -411,9 +413,9 @@ function fillColor(feature) {
   if (DECISION_MODES.has(state.mode)) {
     const profile = decisionProfile(feature);
     if (!profile) return DECISION_COLORS.context;
-    if (state.mode === "pilot") return profile.pilot ? paletteColor("pilot", profile.intensity) : DECISION_COLORS.context;
-    if (state.mode === "feeder") return profile.feeder ? paletteColor("feeder", profile.intensity) : DECISION_COLORS.context;
-    if (state.mode === "structure") return profile.structure ? paletteColor("structure", demandBand(p)) : DECISION_COLORS.context;
+    if (state.mode === "pilot") return profile.pilot ? DECISION_COLORS.pilot : DECISION_COLORS.context;
+    if (state.mode === "feeder") return profile.feeder ? DECISION_COLORS.feeder : DECISION_COLORS.context;
+    if (state.mode === "structure") return profile.structure ? DECISION_COLORS.structure : DECISION_COLORS.context;
     return profile.color;
   }
   if (state.mode === "priority") return PRIORITY_COLORS[p.categoria_prioridad] || "#465057";
@@ -456,9 +458,15 @@ function styleH3Element(el, feature) {
   const isPriority = Number(p.es_celda_prioritaria) === 1;
   const muted = priorityOnly && !(decisionMode ? isVisibleDecision : isPriority);
   const color = fillColor(feature);
+  const light = lightProfile(isVisibleDecision ? (profile?.intensity || demandBand(p)) : 0);
   el.setAttribute("fill", color);
   el.style.setProperty("--cell-glow", glowForColor(color, isVisibleDecision ? 0.82 : 0.22));
-  el.style.setProperty("--cell-pulse", `${4.8 - Math.min(profile?.intensity || 0, 5) * 0.34}s`);
+  el.style.setProperty("--cell-brightness-min", light.minBrightness);
+  el.style.setProperty("--cell-brightness-max", light.maxBrightness);
+  el.style.setProperty("--cell-glow-tight", light.tightGlow);
+  el.style.setProperty("--cell-glow-wide", light.wideGlow);
+  el.style.setProperty("--cell-glow-far", light.farGlow);
+  el.style.setProperty("--cell-pulse", light.pulse);
   if (decisionMode) {
     el.setAttribute("fill-opacity", muted ? 0.02 : isVisibleDecision ? state.opacity : 0.055);
     el.setAttribute("stroke", isSelected ? "#f9f871" : isVisibleDecision ? glowForColor(color, 0.82) : "rgba(255,79,184,0.12)");
@@ -479,7 +487,7 @@ function styleH3Element(el, feature) {
           : state.mode
       : "context";
   el.dataset.recommendation = activeKind || "context";
-  el.dataset.intensity = String(profile?.intensity || demandBand(p) || 0);
+  el.dataset.intensity = String(light.level);
   el.setAttribute("vector-effect", "non-scaling-stroke");
 }
 
@@ -860,6 +868,7 @@ function renderOD(features) {
       class: `od-line${rank <= 10 ? " top-ten" : ""}`,
       d,
       stroke: odColor(rank),
+      style: `--corridor-glow:${glowForColor(odColor(rank), 0.72)}`,
       "stroke-width": width.toFixed(2),
       "vector-effect": "non-scaling-stroke",
     });
@@ -1022,16 +1031,16 @@ function renderLegend() {
     title = state.mode === "decision" ? "Recomendación operativa" : modeTitle();
     rows = state.mode === "decision"
       ? [
-          ["Piloto Metro", DECISION_COLORS.pilot],
-          ["Alimentador nocturno", DECISION_COLORS.feeder],
-          ["Núcleo de demanda", DECISION_COLORS.structure],
-          ["Contexto", DECISION_COLORS.context],
+          ["Piloto Metro", DECISION_COLORS.pilot, "pilot", 4],
+          ["Alimentador nocturno", DECISION_COLORS.feeder, "feeder", 4],
+          ["Núcleo de demanda", DECISION_COLORS.structure, "structure", 4],
+          ["Contexto / sin foco", DECISION_COLORS.context, "context", 0],
         ]
       : [
-          ["Señal alta", paletteColor(state.mode, 3)],
-          ["Señal muy alta", paletteColor(state.mode, 4)],
-          ["Señal extrema", paletteColor(state.mode, 5)],
-          ["Contexto", DECISION_COLORS.context],
+          ["Luz alta", DECISION_COLORS[state.mode], state.mode, 3],
+          ["Luz muy alta", DECISION_COLORS[state.mode], state.mode, 4],
+          ["Luz extrema", DECISION_COLORS[state.mode], state.mode, 5],
+          ["Contexto / sin foco", DECISION_COLORS.context, "context", 0],
         ];
   } else if (state.mode === "priority") {
     title = "Prioridad territorial";
@@ -1056,7 +1065,10 @@ function renderLegend() {
     rows = [["Sobreestimado", "#5a287a"], ["Cercano a cero", "#211a2c"], ["Subestimado", "#ff3b30"]];
   }
   legend.innerHTML = `<h3>${title}</h3>${rows
-    .map(([label, color]) => `<div class="legend-row"><span class="swatch" style="background:${color}"></span><span>${label}</span></div>`)
+    .map(([label, color, key = "", intensity = 0]) => {
+      const light = lightProfile(intensity);
+      return `<div class="legend-row"><span class="swatch" data-key="${key}" data-intensity="${intensity}" style="background:${color};--legend-glow:${glowForColor(color, 0.82)};--legend-brightness:${light.maxBrightness};--legend-glow-tight:${light.tightGlow};--legend-glow-wide:${light.wideGlow}"></span><span>${label}</span></div>`;
+    })
     .join("")}`;
 }
 

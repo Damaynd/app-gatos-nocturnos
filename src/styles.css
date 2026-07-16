@@ -324,7 +324,8 @@ input {
   animation-play-state: paused;
 }
 
-#map.dragging .station-dot {
+#map.dragging .station-dot,
+#map.dragging .od-line {
   filter: none;
   animation-play-state: paused;
 }
@@ -363,16 +364,18 @@ input {
 .h3-cell[data-recommendation="structure"],
 .h3-cell[data-recommendation="lisa"] {
   filter:
-    drop-shadow(0 0 2px var(--cell-glow))
-    drop-shadow(0 0 7px var(--cell-glow));
-  animation: cell-neon-pulse var(--cell-pulse, 4s) steps(2, end) infinite;
+    brightness(var(--cell-brightness-min, 1))
+    drop-shadow(0 0 var(--cell-glow-tight, 2px) var(--cell-glow))
+    drop-shadow(0 0 var(--cell-glow-wide, 7px) var(--cell-glow));
+  animation: cell-neon-pulse var(--cell-pulse, 4s) ease-in-out infinite alternate;
 }
 
 .h3-cell[data-intensity="5"] {
   filter:
-    drop-shadow(0 0 3px var(--cell-glow))
-    drop-shadow(0 0 10px var(--cell-glow))
-    drop-shadow(0 0 16px var(--cell-glow));
+    brightness(var(--cell-brightness-min, 1.18))
+    drop-shadow(0 0 var(--cell-glow-tight, 3px) var(--cell-glow))
+    drop-shadow(0 0 var(--cell-glow-wide, 11px) var(--cell-glow))
+    drop-shadow(0 0 var(--cell-glow-far, 22px) var(--cell-glow));
 }
 
 .h3-cell:hover {
@@ -383,13 +386,15 @@ input {
 @keyframes cell-neon-pulse {
   0% {
     filter:
-      drop-shadow(0 0 1.5px var(--cell-glow))
-      drop-shadow(0 0 5px var(--cell-glow));
+      brightness(var(--cell-brightness-min, 1))
+      drop-shadow(0 0 var(--cell-glow-tight, 2px) var(--cell-glow))
+      drop-shadow(0 0 var(--cell-glow-wide, 7px) var(--cell-glow));
   }
   100% {
     filter:
-      drop-shadow(0 0 3px var(--cell-glow))
-      drop-shadow(0 0 11px var(--cell-glow));
+      brightness(var(--cell-brightness-max, 1.2))
+      drop-shadow(0 0 var(--cell-glow-wide, 8px) var(--cell-glow))
+      drop-shadow(0 0 var(--cell-glow-far, 18px) var(--cell-glow));
   }
 }
 
@@ -438,6 +443,7 @@ input {
 
 .od-line.top-ten {
   opacity: 0.94;
+  animation: corridor-neon 3.9s ease-in-out infinite alternate;
 }
 
 .od-corridor.active .od-halo {
@@ -478,17 +484,33 @@ input {
   stroke-width: 1.8;
   opacity: 1;
   filter:
+    brightness(1.12)
     drop-shadow(0 0 4px rgba(255, 79, 184, 0.94))
-    drop-shadow(0 0 12px rgba(255, 240, 90, 0.42));
-  animation: station-neon 2.7s steps(2, end) infinite;
+    drop-shadow(0 0 12px rgba(255, 79, 184, 0.42));
+  animation: station-neon 2.7s ease-in-out infinite alternate;
+}
+
+@keyframes corridor-neon {
+  0% {
+    filter: brightness(1) drop-shadow(0 0 4px var(--corridor-glow));
+  }
+  100% {
+    filter: brightness(1.28) drop-shadow(0 0 10px var(--corridor-glow));
+  }
 }
 
 @keyframes station-neon {
   0% {
-    fill: #ff4fb8;
+    filter:
+      brightness(1.06)
+      drop-shadow(0 0 3px rgba(255, 79, 184, 0.92))
+      drop-shadow(0 0 9px rgba(255, 79, 184, 0.38));
   }
   100% {
-    fill: #fff05a;
+    filter:
+      brightness(1.42)
+      drop-shadow(0 0 7px rgba(255, 79, 184, 0.98))
+      drop-shadow(0 0 18px rgba(255, 79, 184, 0.52));
   }
 }
 
@@ -637,6 +659,19 @@ input {
   height: 16px;
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.22);
+  filter: brightness(var(--legend-brightness, 1));
+  box-shadow:
+    0 0 var(--legend-glow-tight, 0) var(--legend-glow, transparent),
+    0 0 var(--legend-glow-wide, 0) var(--legend-glow, transparent);
+}
+
+.swatch[data-key="context"] {
+  background:
+    linear-gradient(135deg, rgba(255, 79, 184, 0.14), transparent 42%),
+    repeating-linear-gradient(45deg, #14101c 0 4px, #09060f 4px 8px) !important;
+  border: 1px solid rgba(255, 209, 102, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(255, 79, 184, 0.12);
+  filter: none;
 }
 
 .night-pixels {

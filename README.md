@@ -12,7 +12,7 @@ La vista principal cruza demanda nocturna, distancia a Metro, estaciones existen
 - **Alimentador nocturno:** celdas de demanda alta fuera del radio caminable de 1000 m, con brecha de cobertura y score consistente.
 - **Estructura de demanda:** núcleos LISA HH/LH/HL y casos extremos p99 con residuo alto, coloreados por intensidad de demanda para distinguir las celdas más solicitadas.
 
-La paleta visual usa tema oscuro con acentos neón. Los colores de las celdas no son sólo decorativos: su intensidad varía según demanda y score operativo.
+La paleta visual usa tema oscuro con acentos neón. Los colores de las celdas codifican la categoría operativa y se mantienen estables; la intensidad de luz, halo y pulso varía según demanda y score operativo.
 
 ## Desarrollo
 
