@@ -4,20 +4,33 @@ import { useEffect } from "react";
 
 function PixelCat({ className = "" }) {
   return (
-    <svg className={`pixel-cat ${className}`} viewBox="0 0 16 12" aria-hidden="true" shapeRendering="crispEdges">
-      <rect className="cat-glow" x="3" y="3" width="10" height="8" />
-      <rect className="cat-fur" x="4" y="4" width="8" height="6" />
-      <rect className="cat-fur" x="3" y="5" width="1" height="4" />
-      <rect className="cat-fur" x="12" y="5" width="1" height="4" />
-      <rect className="cat-fur" x="4" y="2" width="2" height="2" />
-      <rect className="cat-fur" x="10" y="2" width="2" height="2" />
-      <rect className="cat-tail" x="13" y="4" width="1" height="1" />
-      <rect className="cat-tail" x="14" y="3" width="1" height="1" />
-      <rect className="cat-tail" x="15" y="2" width="1" height="1" />
-      <rect className="cat-eye" x="6" y="6" width="1" height="1" />
-      <rect className="cat-eye" x="10" y="6" width="1" height="1" />
-      <rect className="cat-nose" x="8" y="7" width="1" height="1" />
-      <rect className="cat-collar" x="5" y="9" width="6" height="1" />
+    <svg className={`pixel-cat ${className}`} viewBox="0 0 24 24" aria-hidden="true" shapeRendering="crispEdges">
+      <rect className="cat-glow" x="4" y="5" width="16" height="15" />
+      <rect className="cat-outline" x="5" y="7" width="14" height="11" />
+      <rect className="cat-outline" x="4" y="10" width="16" height="7" />
+      <rect className="cat-outline" x="4" y="5" width="3" height="6" />
+      <rect className="cat-outline" x="17" y="5" width="3" height="6" />
+      <rect className="cat-outline" x="6" y="3" width="2" height="3" />
+      <rect className="cat-outline" x="16" y="3" width="2" height="3" />
+      <rect className="cat-face" x="6" y="8" width="12" height="9" />
+      <rect className="cat-face" x="5" y="11" width="14" height="5" />
+      <rect className="cat-ear-inner" x="6" y="6" width="1" height="3" />
+      <rect className="cat-ear-inner" x="17" y="6" width="1" height="3" />
+      <rect className="cat-stripe" x="9" y="8" width="1" height="3" />
+      <rect className="cat-stripe" x="12" y="8" width="1" height="4" />
+      <rect className="cat-stripe" x="15" y="8" width="1" height="3" />
+      <rect className="cat-eye" x="7" y="12" width="3" height="1" />
+      <rect className="cat-eye" x="8" y="11" width="1" height="3" />
+      <rect className="cat-eye-core" x="8" y="12" width="1" height="1" />
+      <rect className="cat-eye" x="14" y="12" width="3" height="1" />
+      <rect className="cat-eye" x="15" y="11" width="1" height="3" />
+      <rect className="cat-eye-core" x="15" y="12" width="1" height="1" />
+      <rect className="cat-nose" x="11" y="15" width="2" height="1" />
+      <rect className="cat-mouth" x="12" y="16" width="1" height="2" />
+      <rect className="cat-whisker" x="2" y="14" width="4" height="1" />
+      <rect className="cat-whisker" x="18" y="14" width="4" height="1" />
+      <rect className="cat-whisker" x="4" y="16" width="2" height="1" />
+      <rect className="cat-whisker" x="18" y="16" width="2" height="1" />
     </svg>
   );
 }
@@ -41,8 +54,8 @@ export default function Home() {
           <p className="eyebrow">Santiago · H3-8 · DTPM 2024-2025</p>
           <h1>Gatos Nocturnos</h1>
           <p className="lead">
-            Mapa ejecutivo para priorizar pilotos de Metro nocturno, alimentadores y nodos de demanda fuera del horario
-            operativo.
+            Mapa ejecutivo para priorizar estaciones de Metro nocturno, alimentadores y nodos de demanda fuera del
+            horario operativo.
           </p>
           <p className="project-statement">
             Proyecto para Ciencia de Datos Geográficos, desarrollado principalmente con apoyo de IA y revisión humana.
@@ -83,7 +96,7 @@ export default function Home() {
 
         <section className="decision-brief" aria-label="Lectura operativa">
           <strong>Lectura rápida</strong>
-          <span>Rosado: piloto Metro. Rojo: alimentador nocturno. Amarillo: núcleo estructural de demanda.</span>
+          <span>Rosado: estaciones piloto. Rojo: alimentador nocturno. Amarillo/violeta: núcleos LISA de demanda.</span>
         </section>
 
         <section className="panel-section">
@@ -118,12 +131,12 @@ export default function Home() {
           </div>
           <label className="slider-label">
             Intensidad H3
-            <input type="range" id="opacitySlider" min="20" max="90" defaultValue="72" />
+            <input type="range" id="opacitySlider" min="20" max="90" defaultValue="68" />
           </label>
         </section>
 
         <section className="panel-section">
-          <h2>Áreas sugeridas</h2>
+          <h2>Focos sugeridos</h2>
           <div id="clusterList" className="cluster-list"></div>
         </section>
       </section>

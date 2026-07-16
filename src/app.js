@@ -51,9 +51,15 @@ const OD_COLORS = [
 
 const DECISION_COLORS = {
   pilot: "#ff4fb8",
-  feeder: "#ff3b30",
+  feeder: "#ff3131",
   structure: "#ffd166",
   context: "#14101c",
+};
+
+const DECISION_PALETTES = {
+  pilot: ["#9d4edd", "#c77dff", "#ff4fb8", "#ff2fa3", "#fff05a", "#ffffff"],
+  feeder: ["#7b2cbf", "#f72585", "#ff4d6d", "#ff3131", "#ffb703", "#fff05a"],
+  structure: ["#4cc9f0", "#9d4edd", "#ff4fb8", "#ffd166", "#ffb703", "#fff05a"],
 };
 
 const DECISION_LABELS = {
@@ -63,11 +69,13 @@ const DECISION_LABELS = {
 };
 
 const DECISION_MODES = new Set(["decision", "pilot", "feeder", "structure"]);
+const PILOT_STATION_MAX_CORRIDOR_M = 800;
+const PILOT_CELL_MAX_STATION_M = 500;
 
 const state = {
   mode: "decision",
   scenario: "total",
-  opacity: 0.72,
+  opacity: 0.68,
   odLimit: 10,
   activeODRank: null,
   selectedIds: new Set(),
@@ -75,6 +83,8 @@ const state = {
   elementById: new Map(),
   allFeatures: [],
   odFeatures: [],
+  stationFeatures: [],
+  pilotStations: [],
   summary: null,
   projectedBounds: null,
   viewBox: null,
@@ -192,24 +202,100 @@ function textKey(value) {
     .toLowerCase();
 }
 
+function quantiles(metric) {
+  return state.summary?.metricas?.[metric] || {};
+}
+
+function metricBand(value, metric) {
+  const n = Number(value);
+  const q = quantiles(metric);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (n >= q.p99) return 5;
+  if (n >= q.p95) return 4;
+  if (n >= q.p90) return 3;
+  if (n >= q.p75) return 2;
+  if (n >= q.p50) return 1;
+  return 0;
+}
+
+function demandBand(p) {
+  return metricBand(p[metricForScenario()], metricForScenario());
+}
+
+function paletteColor(kind, band) {
+  const palette = DECISION_PALETTES[kind] || [DECISION_COLORS[kind] || DECISION_COLORS.context];
+  return palette[Math.max(0, Math.min(palette.length - 1, Number(band) || 0))];
+}
+
+function glowForColor(hex, alpha = 0.76) {
+  const value = String(hex || "").replace("#", "");
+  if (value.length !== 6) return "rgba(255, 79, 184, 0.72)";
+  const [r, g, b] = [0, 2, 4].map((index) => parseInt(value.slice(index, index + 2), 16));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function isNearMetro(p) {
   const dist = Number(p.dist_metro_m);
   return Number(p.tiene_metro_1000m) === 1 || Number(p.n_estaciones_riel) > 0 || (Number.isFinite(dist) && dist <= 1000);
 }
 
-function isHighDemand(p) {
-  const metric = metricForScenario();
-  const value = Number(p[metric]);
-  const q = state.summary?.metricas?.[metric];
-  const label = textKey(p.nivel_demanda_h3);
-  return label.includes("alta demanda") || label.includes("muy alta") || (q && Number.isFinite(value) && value >= q.p90);
+function isPilotStation(p) {
+  return (
+    p.es_estacion_colindante_top10 === true &&
+    Number(p.corredor_mas_cercano_rank) <= 10 &&
+    Number(p.distancia_min_corredor_m) <= PILOT_STATION_MAX_CORRIDOR_M
+  );
 }
 
-function isVeryHighDemand(p) {
-  const metric = metricForScenario();
-  const value = Number(p[metric]);
-  const q = state.summary?.metricas?.[metric];
-  return textKey(p.nivel_demanda_h3).includes("muy alta") || (q && Number.isFinite(value) && value >= q.p95);
+function distanceMeters(lon1, lat1, lon2, lat2) {
+  const toRad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toRad;
+  const dLon = (lon2 - lon1) * toRad;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.sin(dLon / 2) ** 2;
+  return 12742000 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function linkPilotStations(h3Features, stationFeatures) {
+  state.stationFeatures = stationFeatures;
+  state.pilotStations = stationFeatures
+    .filter((feature) => isPilotStation(feature.properties))
+    .sort((a, b) => {
+      const rankA = Number(a.properties.corredor_mas_cercano_rank) || 99;
+      const rankB = Number(b.properties.corredor_mas_cercano_rank) || 99;
+      const distA = Number(a.properties.distancia_min_corredor_m) || 9999;
+      const distB = Number(b.properties.distancia_min_corredor_m) || 9999;
+      return rankA - rankB || distA - distB;
+    });
+
+  h3Features.forEach((feature) => {
+    const p = feature.properties;
+    let best = null;
+    state.pilotStations.forEach((station) => {
+      const [lon, lat] = station.geometry.coordinates;
+      const distance = distanceMeters(Number(p.lon), Number(p.lat), lon, lat);
+      if (!best || distance < best.distance) best = { station, distance };
+    });
+
+    delete p.pilot_station_id;
+    delete p.pilot_station_name;
+    delete p.pilot_station_lines;
+    delete p.pilot_station_distance_m;
+    delete p.pilot_corridor_rank;
+    delete p.pilot_corridor_name;
+    delete p.pilot_corridor_trips;
+
+    if (!best || best.distance > PILOT_CELL_MAX_STATION_M) return;
+    const stationProps = best.station.properties;
+    p.pilot_station_id = stationProps.station_id;
+    p.pilot_station_name = stationProps.nombre_estacion;
+    p.pilot_station_lines = stationProps.lineas_metro;
+    p.pilot_station_distance_m = best.distance;
+    p.pilot_corridor_rank = stationProps.corredor_mas_cercano_rank;
+    p.pilot_corridor_name = stationProps.corredor_mas_cercano_comunal;
+    p.pilot_corridor_trips = stationProps.viajes_corredor_mas_cercano;
+  });
 }
 
 function decisionProfile(feature) {
@@ -217,31 +303,52 @@ function decisionProfile(feature) {
   const category = textKey(p.categoria_prioridad);
   const lisa = String(p.lisa_cluster || "");
   const nearMetro = isNearMetro(p);
-  const highDemand = isHighDemand(p);
-  const veryHighDemand = isVeryHighDemand(p);
-  const hasStation = Number(p.n_estaciones_riel) > 0;
+  const metric = metricForScenario();
+  const value = Number(p[metric]);
+  const band = demandBand(p);
+  const q = quantiles(metric);
+  const residualQ = quantiles("residuos_ols_h3");
   const pilotScore = Number(p.score_piloto_metro);
   const feederScore = Number(p.score_brecha_cobertura);
   const lisaHot = lisa === "HH";
   const lisaBridge = lisa === "LH" || lisa === "HL";
+  const pilotStation = Boolean(p.pilot_station_id);
+  const strongDemand = band >= 4 || lisaHot;
+  const feederDemand = band >= 3 || lisaHot || lisaBridge;
+  const extremeDemand = band >= 5 || (Number.isFinite(value) && Number.isFinite(q.p99) && value >= q.p99);
+  const highResidual =
+    Number.isFinite(Number(p.residuos_ols_h3)) &&
+    Number.isFinite(residualQ.p90) &&
+    Number(p.residuos_ols_h3) >= residualQ.p90;
   const pilot =
-    nearMetro &&
-    highDemand &&
-    (hasStation || lisaHot || category.includes("candidato") || category.includes("critica") || pilotScore >= 0.82);
+    pilotStation &&
+    (strongDemand || (band >= 3 && pilotScore >= 0.88) || category.includes("critica"));
   const feeder =
     !nearMetro &&
-    highDemand &&
-    (category.includes("brecha") || lisaHot || lisaBridge || feederScore >= 0.8);
-  const structure = lisaHot || veryHighDemand || (highDemand && (pilotScore >= 0.86 || feederScore >= 0.84));
+    feederDemand &&
+    category.includes("brecha") &&
+    (band >= 4 || lisaHot || lisaBridge || feederScore >= 0.805);
+  const structure =
+    (lisaHot && band >= 2) ||
+    (lisaBridge && band >= 3) ||
+    (extremeDemand && highResidual);
   if (!pilot && !feeder && !structure) return null;
   const kind = pilot ? "pilot" : feeder ? "feeder" : "structure";
+  const intensity = Math.max(
+    band,
+    pilot ? metricBand(pilotScore, "score_piloto_metro") : 0,
+    feeder ? metricBand(feederScore, "score_brecha_cobertura") : 0,
+  );
+  const color = paletteColor(kind, intensity);
   return {
     kind,
     pilot,
     feeder,
     structure,
+    intensity,
     label: DECISION_LABELS[kind],
-    color: DECISION_COLORS[kind],
+    color,
+    glow: glowForColor(color),
   };
 }
 
@@ -304,9 +411,9 @@ function fillColor(feature) {
   if (DECISION_MODES.has(state.mode)) {
     const profile = decisionProfile(feature);
     if (!profile) return DECISION_COLORS.context;
-    if (state.mode === "pilot") return profile.pilot ? DECISION_COLORS.pilot : DECISION_COLORS.context;
-    if (state.mode === "feeder") return profile.feeder ? DECISION_COLORS.feeder : DECISION_COLORS.context;
-    if (state.mode === "structure") return profile.structure ? DECISION_COLORS.structure : DECISION_COLORS.context;
+    if (state.mode === "pilot") return profile.pilot ? paletteColor("pilot", profile.intensity) : DECISION_COLORS.context;
+    if (state.mode === "feeder") return profile.feeder ? paletteColor("feeder", profile.intensity) : DECISION_COLORS.context;
+    if (state.mode === "structure") return profile.structure ? paletteColor("structure", demandBand(p)) : DECISION_COLORS.context;
     return profile.color;
   }
   if (state.mode === "priority") return PRIORITY_COLORS[p.categoria_prioridad] || "#465057";
@@ -341,17 +448,21 @@ function fillColor(feature) {
 
 function styleH3Element(el, feature) {
   const p = feature.properties;
+  const profile = decisionProfile(feature);
   const isSelected = state.selectedIds.has(p.h3_cell_id);
   const priorityOnly = document.getElementById("togglePriorityOnly")?.checked;
   const decisionMode = DECISION_MODES.has(state.mode) || state.mode === "lisa";
   const isVisibleDecision = featureMatchesMode(feature);
   const isPriority = Number(p.es_celda_prioritaria) === 1;
   const muted = priorityOnly && !(decisionMode ? isVisibleDecision : isPriority);
-  el.setAttribute("fill", fillColor(feature));
+  const color = fillColor(feature);
+  el.setAttribute("fill", color);
+  el.style.setProperty("--cell-glow", glowForColor(color, isVisibleDecision ? 0.82 : 0.22));
+  el.style.setProperty("--cell-pulse", `${4.8 - Math.min(profile?.intensity || 0, 5) * 0.34}s`);
   if (decisionMode) {
     el.setAttribute("fill-opacity", muted ? 0.02 : isVisibleDecision ? state.opacity : 0.055);
-    el.setAttribute("stroke", isSelected ? "#f9f871" : isVisibleDecision ? "rgba(255,255,255,0.58)" : "rgba(255,79,184,0.12)");
-    el.setAttribute("stroke-width", isSelected ? "2.5" : isVisibleDecision ? "0.72" : "0.22");
+    el.setAttribute("stroke", isSelected ? "#f9f871" : isVisibleDecision ? glowForColor(color, 0.82) : "rgba(255,79,184,0.12)");
+    el.setAttribute("stroke-width", isSelected ? "2.5" : isVisibleDecision ? "0.82" : "0.22");
     el.setAttribute("opacity", muted ? "0.08" : "1");
   } else {
     el.setAttribute("fill-opacity", muted ? 0.035 : state.opacity);
@@ -359,7 +470,16 @@ function styleH3Element(el, feature) {
     el.setAttribute("stroke-width", isSelected ? "2.4" : isPriority ? "0.7" : "0.35");
     el.setAttribute("opacity", muted ? "0.16" : "1");
   }
-  el.dataset.recommendation = decisionProfile(feature)?.kind || "context";
+  const activeKind =
+    decisionMode && isVisibleDecision
+      ? state.mode === "decision"
+        ? profile?.kind
+        : state.mode === "lisa"
+          ? "lisa"
+          : state.mode
+      : "context";
+  el.dataset.recommendation = activeKind || "context";
+  el.dataset.intensity = String(profile?.intensity || demandBand(p) || 0);
   el.setAttribute("vector-effect", "non-scaling-stroke");
 }
 
@@ -423,12 +543,12 @@ function recommendationReason(feature) {
   const profile = decisionProfile(feature);
   if (!profile) return "Contexto urbano: no aparece como prioridad operativa bajo los criterios actuales.";
   if (profile.kind === "pilot") {
-    return "Candidato a piloto Metro: alta demanda nocturna cerca de estación o dentro de cluster LISA de alta actividad.";
+    return `Estación piloto sugerida: ${p.pilot_station_name || "estación cercana"} concentra señal de corredor OD top ${p.pilot_corridor_rank || "--"} y demanda nocturna alta.`;
   }
   if (profile.kind === "feeder") {
-    return "Candidato a alimentador nocturno: demanda relevante fuera del radio caminable de 1000 m de Metro.";
+    return "Candidato a alimentador nocturno: demanda relevante fuera del radio caminable de 1000 m de Metro, con brecha de cobertura y score alto.";
   }
-  return "Núcleo estructural: cluster LISA o demanda muy alta que ayuda a ordenar la red nocturna.";
+  return "Núcleo estructural: cluster LISA significativo o demanda extrema con residuo alto; ayuda a ordenar la red nocturna.";
 }
 
 function tooltipHtml(p) {
@@ -437,6 +557,13 @@ function tooltipHtml(p) {
   const metric = metricForScenario();
   const olsRow = state.mode === "ols"
     ? `<span>Residuo OLS contextual</span><b>${number(p.residuos_ols_h3, 2)}</b>`
+    : "";
+  const pilotRows = p.pilot_station_name
+    ? `
+        <span>Estación piloto</span><b>${p.pilot_station_name} (${p.pilot_station_lines || "--"})</b>
+        <span>Corredor OD</span><b>#${p.pilot_corridor_rank || "--"} · ${number(p.pilot_corridor_trips, 1)} viajes/día</b>
+        <span>Distancia a estación</span><b>${number(p.pilot_station_distance_m)} m</b>
+      `
     : "";
   const tagColor = profile?.color || categoryTagColor(p.categoria_prioridad);
   return `
@@ -451,6 +578,7 @@ function tooltipHtml(p) {
         <span>LISA</span><b>${p.lisa_cluster || "Sin dato"}</b>
         <span>Score piloto</span><b>${number(p.score_piloto_metro, 2)}</b>
         <span>Score brecha</span><b>${number(p.score_brecha_cobertura, 2)}</b>
+        ${pilotRows}
         ${olsRow}
       </div>
     </div>`;
@@ -520,20 +648,20 @@ function decisionSummaryText(mode, features) {
   const structureCount = featuresForMode("structure").length;
   if (mode === "pilot") {
     return `
-      Prioriza celdas de alta demanda cerca de Metro, con estaciones críticas, candidatos de operación o clusters LISA HH.
-      Útil para escoger dónde probar extensión horaria con menor inversión inicial.
+      Prioriza celdas de alta demanda alrededor de estaciones a 800 m o menos de corredores OD top 10.
+      Útil para escoger qué estaciones deberían abrir primero en un piloto nocturno.
     `;
   }
   if (mode === "feeder") {
     return `
-      Prioriza celdas con demanda relevante fuera del radio caminable de 1000 m.
+      Prioriza celdas con demanda alta fuera del radio caminable de 1000 m y brecha de cobertura consistente.
       Estas zonas sugieren servicios alimentadores nocturnos hacia estaciones o ejes troncales.
     `;
   }
   if (mode === "structure") {
     return `
-      Muestra núcleos LISA y demanda muy alta que estructuran los viajes nocturnos.
-      Sirve para entender dónde se concentra la presión de red antes de decidir la tecnología.
+      Muestra núcleos LISA HH/LH/HL y casos extremos p99 con residuo alto.
+      El matiz del color expresa intensidad de demanda para ordenar las celdas más solicitadas.
     `;
   }
   if (mode === "lisa") {
@@ -569,9 +697,13 @@ function updateDetailForFeature(feature) {
   const p = feature.properties;
   const stats = aggregate([feature]);
   const profile = decisionProfile(feature);
+  const pilotText = p.pilot_station_name
+    ? ` Estación asociada: <b>${p.pilot_station_name}</b> (${p.pilot_station_lines || "--"}), corredor OD #<b>${p.pilot_corridor_rank || "--"}</b> a <b>${number(p.pilot_station_distance_m)} m</b>.`
+    : "";
   updateDetailForAggregate(`${p.comuna || "Santiago"} · H3 ${p.h3_short}`, stats, `
     <b>${profile?.label || p.categoria_prioridad_label || p.categoria_prioridad || "Contexto"}.</b>
     ${recommendationReason(feature)}
+    ${pilotText}
     LISA: <b>${p.lisa_cluster || "sin dato"}</b>; distancia a Metro: <b>${number(p.dist_metro_m)} m</b>;
     score piloto: <b>${number(p.score_piloto_metro, 2)}</b>; score brecha: <b>${number(p.score_brecha_cobertura, 2)}</b>.
   `);
@@ -673,19 +805,32 @@ function renderStations(features) {
   features.forEach((feature) => {
     const p = feature.properties;
     const [x, y] = pointFromGeometry(feature.geometry);
-    const selected = p.es_estacion_colindante_top10 === true;
+    const selected = isPilotStation(p);
     const dot = createSvg("circle", {
-      class: `station-dot${selected ? " colindante" : ""}`,
+      class: `station-dot${selected ? " pilot-station" : ""}`,
       cx: x,
       cy: y,
-      r: selected ? 92 : 58,
+      r: selected ? 108 : 52,
       "vector-effect": "non-scaling-stroke",
     });
     dot.addEventListener("mouseenter", (event) => {
-      showTooltip(`<div class="tooltip-card"><h3>${p.nombre_estacion}</h3><div class="tooltip-table"><span>Líneas</span><b>${p.lineas_metro || "--"}</b><span>OD top 10</span><b>${selected ? "Sí" : "No"}</b></div></div>`, event);
+      const pilotRows = selected
+        ? `
+          <span>Piloto sugerido</span><b>Sí</b>
+          <span>Corredor OD</span><b>#${p.corredor_mas_cercano_rank} · ${p.corredor_mas_cercano_comunal || "--"}</b>
+          <span>Viajes corredor</span><b>${number(p.viajes_corredor_mas_cercano, 1)} diarios</b>
+          <span>Distancia corredor</span><b>${number(p.distancia_min_corredor_m)} m</b>
+        `
+        : `<span>Piloto sugerido</span><b>No bajo criterio actual</b>`;
+      showTooltip(`<div class="tooltip-card"><h3>${p.nombre_estacion}</h3><div class="tooltip-table"><span>Líneas</span><b>${p.lineas_metro || "--"}</b>${pilotRows}</div></div>`, event);
     });
     dot.addEventListener("mousemove", moveTooltip);
     dot.addEventListener("mouseleave", hideTooltip);
+    dot.addEventListener("click", (event) => {
+      if (!selected) return;
+      event.stopPropagation();
+      selectPilotStation(p.station_id);
+    });
     groups.stations.appendChild(dot);
   });
 }
@@ -883,7 +1028,9 @@ function renderLegend() {
           ["Contexto", DECISION_COLORS.context],
         ]
       : [
-          ["Zonas foco", DECISION_COLORS[state.mode]],
+          ["Señal alta", paletteColor(state.mode, 3)],
+          ["Señal muy alta", paletteColor(state.mode, 4)],
+          ["Señal extrema", paletteColor(state.mode, 5)],
           ["Contexto", DECISION_COLORS.context],
         ];
   } else if (state.mode === "priority") {
@@ -927,24 +1074,44 @@ function buildKpis() {
 
 function buildClusterList() {
   const target = document.getElementById("clusterList");
-  const clusters = state.summary.top_clusters || [];
-  target.innerHTML = clusters
-    .slice(0, 6)
-    .map(
-      (c) => `
-      <button class="cluster-card" data-cluster="${c.cluster_prioridad}">
-        <strong>Cluster ${c.cluster_prioridad}: ${c.categoria_dominante}</strong>
-        <span>${number(c.poblacion_censo)} personas · ${number(c.viajes_total_por_1000_personas, 1)} viajes/1000 pers.</span>
-      </button>`,
-    )
-    .join("");
-  target.querySelectorAll("button").forEach((btn) => {
-    btn.addEventListener("click", () => selectCluster(Number(btn.dataset.cluster)));
-  });
-}
+  const metric = metricForScenario();
 
-function selectedFeaturesByCluster(clusterId) {
-  return [...state.featureById.values()].filter((feature) => Number(feature.properties.cluster_prioridad) === clusterId);
+  if (state.mode === "decision" || state.mode === "pilot") {
+    const rows = state.pilotStations.slice(0, 7);
+    target.innerHTML = rows
+      .map((station) => {
+        const p = station.properties;
+        return `
+          <button class="cluster-card" data-station="${p.station_id}">
+            <strong>${p.nombre_estacion} · ${p.lineas_metro || "--"}</strong>
+            <span>OD #${p.corredor_mas_cercano_rank} · ${number(p.viajes_corredor_mas_cercano, 1)} viajes/día · ${number(p.distancia_min_corredor_m)} m al corredor</span>
+          </button>`;
+      })
+      .join("");
+    target.querySelectorAll("button").forEach((btn) => {
+      btn.addEventListener("click", () => selectPilotStation(btn.dataset.station));
+    });
+    return;
+  }
+
+  const rows = featuresForMode()
+    .sort((a, b) => (Number(b.properties[metric]) || 0) - (Number(a.properties[metric]) || 0))
+    .slice(0, 7);
+  target.innerHTML = rows.length
+    ? rows
+        .map((feature) => {
+          const p = feature.properties;
+          return `
+            <button class="cluster-card" data-h3="${p.h3_cell_id}">
+              <strong>${p.comuna || "Santiago"} · H3 ${p.h3_short}</strong>
+              <span>${number(p[metric], 1)} viajes/día · LISA ${p.lisa_cluster || "--"} · ${number(p.dist_metro_m)} m a Metro</span>
+            </button>`;
+        })
+        .join("")
+    : `<p class="empty-focus">No hay focos bajo el criterio activo.</p>`;
+  target.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => selectFeature(btn.dataset.h3));
+  });
 }
 
 function boundsForFeatures(features) {
@@ -957,17 +1124,30 @@ function boundsForFeatures(features) {
   });
 }
 
-function selectCluster(clusterId) {
-  const features = selectedFeaturesByCluster(clusterId);
+function selectFeature(id) {
+  const feature = state.featureById.get(id);
+  if (!feature) return;
+  state.selectedIds.clear();
+  state.selectedIds.add(id);
+  refreshH3Styles();
+  fitProjectedBounds(boundsForFeatures([feature]), 0.38);
+  updateDetailForFeature(feature);
+}
+
+function selectPilotStation(stationId) {
+  const features = state.allFeatures.filter(
+    (feature) => feature.properties.pilot_station_id === stationId && featureMatchesMode(feature, "pilot"),
+  );
+  if (!features.length) return;
   state.selectedIds.clear();
   features.forEach((feature) => state.selectedIds.add(feature.properties.h3_cell_id));
   refreshH3Styles();
-  fitProjectedBounds(boundsForFeatures(features), 0.24);
+  fitProjectedBounds(boundsForFeatures(features), 0.34);
   updateDetailForSelection();
 }
 
 function zoomPriority() {
-  const features = featuresForMode(state.mode === "lisa" ? "lisa" : "decision");
+  const features = featuresForMode(DECISION_MODES.has(state.mode) || state.mode === "lisa" ? state.mode : "decision");
   fitProjectedBounds(boundsForFeatures(features), 0.08);
 }
 
@@ -979,6 +1159,7 @@ function setupControls() {
       state.mode = btn.dataset.mode;
       refreshH3Styles();
       buildKpis();
+      buildClusterList();
       if (state.selectedIds.size) updateDetailForSelection();
       else updateDefaultDetail();
     });
@@ -991,6 +1172,7 @@ function setupControls() {
       state.scenario = btn.dataset.scenario;
       refreshH3Styles();
       buildKpis();
+      buildClusterList();
       if (state.selectedIds.size) updateDetailForSelection();
       else updateDefaultDetail();
     });
@@ -1041,6 +1223,7 @@ async function init() {
     loadJson(DATA.summary),
   ]);
   state.summary = summary;
+  linkPilotStations(h3.features, stations.features);
   state.allFeatures = h3.features;
   state.odFeatures = od.features;
   state.projectedBounds = h3.features.reduce((bounds, feature) => geometryBounds(feature.geometry, bounds), {

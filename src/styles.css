@@ -253,6 +253,16 @@ input {
   color: var(--text);
   text-align: left;
   cursor: pointer;
+  transition:
+    border 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.cluster-card:hover {
+  background: rgba(255, 79, 184, 0.1);
+  border-color: rgba(255, 209, 102, 0.58);
+  box-shadow: 0 0 18px rgba(255, 79, 184, 0.12);
 }
 
 .cluster-card strong {
@@ -264,6 +274,16 @@ input {
 .cluster-card span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.empty-focus {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  border: 1px solid rgba(255, 79, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .map-wrap {
@@ -300,6 +320,13 @@ input {
 
 #map.dragging .h3-cell {
   transition: none;
+  filter: none;
+  animation-play-state: paused;
+}
+
+#map.dragging .station-dot {
+  filter: none;
+  animation-play-state: paused;
 }
 
 #mapSvg {
@@ -322,15 +349,48 @@ input {
 
 .h3-cell {
   cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
   transition:
     fill-opacity 120ms ease,
+    filter 160ms ease,
     stroke-width 120ms ease,
     opacity 120ms ease;
+}
+
+.h3-cell[data-recommendation="pilot"],
+.h3-cell[data-recommendation="feeder"],
+.h3-cell[data-recommendation="structure"],
+.h3-cell[data-recommendation="lisa"] {
+  filter:
+    drop-shadow(0 0 2px var(--cell-glow))
+    drop-shadow(0 0 7px var(--cell-glow));
+  animation: cell-neon-pulse var(--cell-pulse, 4s) steps(2, end) infinite;
+}
+
+.h3-cell[data-intensity="5"] {
+  filter:
+    drop-shadow(0 0 3px var(--cell-glow))
+    drop-shadow(0 0 10px var(--cell-glow))
+    drop-shadow(0 0 16px var(--cell-glow));
 }
 
 .h3-cell:hover {
   stroke: #ffd166;
   stroke-width: 2.2;
+}
+
+@keyframes cell-neon-pulse {
+  0% {
+    filter:
+      drop-shadow(0 0 1.5px var(--cell-glow))
+      drop-shadow(0 0 5px var(--cell-glow));
+  }
+  100% {
+    filter:
+      drop-shadow(0 0 3px var(--cell-glow))
+      drop-shadow(0 0 11px var(--cell-glow));
+  }
 }
 
 .metro-line {
@@ -405,15 +465,31 @@ input {
 }
 
 .station-dot {
-  stroke: #050308;
-  stroke-width: 1.1;
-  fill: #ffd166;
+  stroke: rgba(255, 241, 248, 0.48);
+  stroke-width: 0.9;
+  fill: rgba(255, 209, 102, 0.44);
+  opacity: 0.72;
   pointer-events: all;
 }
 
-.station-dot.colindante {
+.station-dot.pilot-station {
   fill: #ff4fb8;
-  stroke-width: 1.6;
+  stroke: #fff05a;
+  stroke-width: 1.8;
+  opacity: 1;
+  filter:
+    drop-shadow(0 0 4px rgba(255, 79, 184, 0.94))
+    drop-shadow(0 0 12px rgba(255, 240, 90, 0.42));
+  animation: station-neon 2.7s steps(2, end) infinite;
+}
+
+@keyframes station-neon {
+  0% {
+    fill: #ff4fb8;
+  }
+  100% {
+    fill: #fff05a;
+  }
 }
 
 .floating-tooltip {
@@ -604,45 +680,62 @@ input {
 
 .pixel-cat {
   position: absolute;
-  width: 88px;
+  width: 98px;
   height: auto;
   color: #07040b;
   pointer-events: none;
   image-rendering: pixelated;
   filter:
-    drop-shadow(0 0 10px rgba(255, 79, 184, 0.68))
-    drop-shadow(0 0 22px rgba(157, 78, 221, 0.26))
+    drop-shadow(0 0 8px rgba(255, 79, 184, 0.88))
+    drop-shadow(0 0 18px rgba(255, 240, 90, 0.24))
+    drop-shadow(0 0 28px rgba(157, 78, 221, 0.34))
     drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
 }
 
 .cat-glow {
-  fill: rgba(255, 79, 184, 0.22);
+  fill: rgba(255, 79, 184, 0.18);
 }
 
-.cat-fur {
-  fill: currentColor;
+.cat-outline {
+  fill: #050308;
 }
 
-.cat-tail {
-  fill: var(--accent-2);
+.cat-face {
+  fill: #17101f;
+}
+
+.cat-ear-inner {
+  fill: #ff4fb8;
+}
+
+.cat-stripe {
+  fill: #9d4edd;
 }
 
 .cat-eye {
-  fill: var(--accent-3);
+  fill: #fff05a;
+  filter:
+    drop-shadow(0 0 2px rgba(255, 240, 90, 0.92))
+    drop-shadow(0 0 5px rgba(255, 79, 184, 0.55));
+}
+
+.cat-eye-core {
+  fill: #050308;
 }
 
 .cat-nose {
-  fill: var(--accent);
+  fill: #ff3131;
 }
 
-.cat-collar {
-  fill: var(--accent-4);
+.cat-mouth,
+.cat-whisker {
+  fill: #c77dff;
 }
 
 .brand-cat {
   top: 4px;
   right: 0;
-  width: 74px;
+  width: 82px;
 }
 
 .map-cat {
