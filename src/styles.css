@@ -924,9 +924,12 @@ input {
   fill: #ff3131;
 }
 
-.cat-mouth,
 .cat-paw {
   fill: #050308;
+}
+
+.cat-mouth {
+  fill: #17101f;
 }
 
 .cat-whisker {

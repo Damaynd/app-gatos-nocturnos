@@ -670,14 +670,14 @@ function determinantTooltipRows(p) {
     const correlation = state.correlationByKey.get(variable.key)?.correlation;
     return `
       <span>${variable.shortLabel}</span>
-      <b>${formatDeterminantValue(variable, p)} · r ${formatCorrelation(correlation)}</b>`;
+      <b>${formatDeterminantValue(variable, p)} (corr. ${formatCorrelation(correlation)})</b>`;
   }).join("");
 }
 
 function determinantFeatureSummary(p) {
   return DETERMINANT_VARIABLES.map((variable) => {
     const correlation = state.correlationByKey.get(variable.key)?.correlation;
-    return `<span><b>${variable.shortLabel}:</b> ${formatDeterminantValue(variable, p)} · r ${formatCorrelation(correlation)}</span>`;
+    return `<span><b>${variable.shortLabel}:</b> ${formatDeterminantValue(variable, p)} (corr. ${formatCorrelation(correlation)})</span>`;
   }).join("");
 }
 
