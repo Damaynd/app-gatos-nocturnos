@@ -27,7 +27,8 @@ export default function Home() {
             de demanda.
           </p>
           <p className="project-statement">
-            Proyecto para Ciencia de Datos Geográficos, desarrollado principalmente con apoyo de IA y revisión humana.
+            Proyecto para CC5216 - Ciencia de Datos Geográficos, Universidad de Chile, desarrollado principalmente
+            con apoyo de IA y revisión humana.
           </p>
         </header>
 

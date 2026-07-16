@@ -906,7 +906,7 @@ input {
 }
 
 .cat-stripe {
-  fill: #9d4edd;
+  fill: #050308;
 }
 
 .cat-eye {
@@ -925,8 +925,11 @@ input {
 }
 
 .cat-mouth,
-.cat-whisker,
 .cat-paw {
+  fill: #050308;
+}
+
+.cat-whisker {
   fill: #c77dff;
 }
 

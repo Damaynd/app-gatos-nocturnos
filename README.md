@@ -2,7 +2,7 @@
 
 Aplicación Next.js para visualizar el contexto del transporte público en horarios no operativos de Metro (aprox. 23:00-06:00), usando celdas H3, corredores OD, estaciones y métricas territoriales en Santiago.
 
-El proyecto fue desarrollado para el curso de Ciencia de Datos Geográficos. La mayor parte del desarrollo de la aplicación se realizó con apoyo de herramientas de IA, con curaduría, análisis y revisión humana.
+El proyecto fue desarrollado para CC5216 - Ciencia de Datos Geográficos, Universidad de Chile. La mayor parte del desarrollo de la aplicación se realizó con apoyo de herramientas de IA, con curaduría, análisis y revisión humana.
 
 ## Objetivo
 
@@ -20,7 +20,7 @@ La interfaz principal contiene un mapa H3 y un panel de decisión. Cada vista ac
 - **Piloto Metro:** destaca celdas cercanas a estaciones y corredores OD de alta demanda.
 - **Alimentador:** identifica celdas con demanda relevante fuera del radio caminable de Metro.
 - **Estructura demanda:** muestra matices de intensidad para distinguir las celdas más solicitadas.
-- **LISA:** permite revisar patrones de autocorrelación espacial.
+- **LISA:** permite revisar patrones de autocorrelación espacial. HH, LH y HL se interpretan como señales activas; LL y las celdas no significativas quedan como contexto sin foco operativo.
 
 Las capas de apoyo permiten activar o desactivar estaciones de Metro, corredores OD, límites comunales y el filtro de zonas sugeridas. También se puede cambiar el escenario entre promedio, día laboral y fin de semana.
 

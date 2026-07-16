@@ -485,7 +485,7 @@ function fillColor(feature) {
     ]);
   }
   if (state.mode === "access") return accessColor(p);
-  if (state.mode === "lisa") return LISA_COLORS[p.lisa_cluster] || "#dfe5e8";
+  if (state.mode === "lisa") return LISA_COLORS[p.lisa_cluster] || DECISION_COLORS.context;
   if (state.mode === "beneficiaries") {
     return colorRamp(p.beneficiarios_tp, "beneficiarios_tp", [
       "#15111d",
@@ -801,7 +801,7 @@ function decisionSummaryText(mode, features) {
   if (mode === "lisa") {
     return `
       Enfoca clusters LISA HH, LH y HL para separar concentración territorial, bordes de alta demanda y zonas atípicas.
-      Las celdas no significativas quedan como fondo.
+      LL y las celdas no significativas quedan como contexto: no se interpretan como foco operativo para esta decisión.
     `;
   }
   return `
@@ -1187,7 +1187,13 @@ function renderLegend() {
     rows = [["Celda con estación", "#f72585"], ["<= 800 m", "#9d4edd"], ["800-1000 m", "#c77dff"], ["1000-2000 m", "#ffd166"], ["> 2000 m", "#ff3b30"]];
   } else if (state.mode === "lisa") {
     title = "LISA";
-    rows = Object.entries(LISA_COLORS);
+    rows = [
+      ["HH · concentración alta", LISA_COLORS.HH, "lisa", 4],
+      ["LH · borde de alta demanda", LISA_COLORS.LH, "lisa", 3],
+      ["HL · atípico territorial", LISA_COLORS.HL, "lisa", 3],
+      ["LL · baja-baja / contexto", LISA_COLORS.LL, "context", 0],
+      ["No significativo / sin señal", LISA_COLORS["No significativo"], "context", 0],
+    ];
   } else if (state.mode === "beneficiaries") {
     title = "Usuarios censales de transporte público";
     rows = [["Bajo", "#15111d"], ["Medio", "#5a287a"], ["Alto", "#ff4fb8"], ["Muy alto", "#ffd166"]];

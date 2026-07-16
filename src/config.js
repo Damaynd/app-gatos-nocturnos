@@ -18,7 +18,7 @@ export const PRIORITY_COLORS = {
 
 export const LISA_COLORS = {
   HH: "#ff3b30",
-  LL: "#3a2f4f",
+  LL: "#14101c",
   HL: "#9d4edd",
   LH: "#ffd166",
   "No significativo": "#211a2c",
