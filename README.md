@@ -24,6 +24,8 @@ La interfaz principal contiene un mapa H3 y un panel de decisión. Cada vista ac
 
 Las capas de apoyo permiten activar o desactivar estaciones de Metro, corredores OD, límites comunales y el filtro de zonas sugeridas. También se puede cambiar el escenario entre promedio, día laboral y fin de semana.
 
+El panel de variables seleccionadas muestra la correlación de cada variable retenida con la demanda nocturna del escenario activo. Estas variables fueron elegidas por su interpretación territorial y operativa; se dejaron fuera campos redundantes, altamente correlacionados entre sí, con baja señal o poco útiles para decidir operación nocturna.
+
 ## Datos incluidos
 
 Los datos necesarios para probar la aplicación ya están incluidos en `public/data`. No es necesario ejecutar scripts de preparación para abrir la app localmente.

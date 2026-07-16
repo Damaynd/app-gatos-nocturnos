@@ -73,6 +73,67 @@ const DECISION_MODES = new Set(["decision", "pilot", "feeder", "structure"]);
 const PILOT_STATION_MAX_CORRIDOR_M = 800;
 const PILOT_CELL_MAX_STATION_M = 500;
 
+const DETERMINANT_VARIABLES = [
+  {
+    key: "beneficiarios_tp",
+    label: "Usuarios TP censales",
+    shortLabel: "Usuarios TP",
+    format: "number",
+    color: "#ff4fb8",
+    rationale: "Masa potencial de personas que ya dependen del transporte público.",
+  },
+  {
+    key: "pct_transporte_publico_h3",
+    label: "Uso TP habitual",
+    shortLabel: "TP habitual",
+    format: "pct",
+    color: "#ffd166",
+    rationale: "Dependencia modal del transporte público en la celda.",
+  },
+  {
+    key: "densidad_poblacion_h3",
+    label: "Densidad poblacional",
+    shortLabel: "Densidad",
+    format: "density",
+    transform: "log1p",
+    color: "#9d4edd",
+    rationale: "Intensidad urbana y masa de viajes posibles.",
+  },
+  {
+    key: "pct_vivienda_departamento_h3",
+    label: "Vivienda en depto.",
+    shortLabel: "Vivienda depto.",
+    format: "pct",
+    color: "#c77dff",
+    rationale: "Proxy de centralidad, compacidad y mezcla urbana.",
+  },
+  {
+    key: "pct_personas_18_44_h3",
+    label: "Población 18-44",
+    shortLabel: "18-44 años",
+    format: "pct",
+    color: "#f72585",
+    rationale: "Grupo etario con alta movilidad laboral, social y recreativa.",
+  },
+  {
+    key: "pct_ocupaciones_servicios_operativas_h3",
+    label: "Servicios/operativas",
+    shortLabel: "Serv./oper.",
+    format: "pct",
+    color: "#ff3131",
+    rationale: "Actividades laborales con mayor probabilidad de desplazamiento fuera de horario.",
+  },
+  {
+    key: "dist_metro_m",
+    label: "Cercanía a Metro",
+    shortLabel: "Distancia Metro",
+    format: "distance",
+    transform: "inverseLog1p",
+    color: "#ffb703",
+    rationale: "Relación operativa con estaciones existentes y factibilidad de piloto.",
+  },
+];
+
 const state = {
   mode: "decision",
   scenario: "total",
@@ -88,6 +149,8 @@ const state = {
   stationFeatures: [],
   pilotStations: [],
   summary: null,
+  correlations: [],
+  correlationByKey: new Map(),
   projectedBounds: null,
   viewBox: null,
   drag: null,
@@ -219,6 +282,92 @@ function metricBand(value, metric) {
   if (n >= q.p75) return 2;
   if (n >= q.p50) return 1;
   return 0;
+}
+
+function determinantRawValue(variable, p) {
+  const value = Number(p[variable.key]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function determinantModelValue(variable, p) {
+  const raw = determinantRawValue(variable, p);
+  if (raw === null) return null;
+  if (variable.transform === "log1p") return Math.log1p(Math.max(0, raw));
+  if (variable.transform === "inverseLog1p") return -Math.log1p(Math.max(0, raw));
+  return raw;
+}
+
+function formatCorrelation(value) {
+  if (!Number.isFinite(value)) return "--";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}`;
+}
+
+function formatDeterminantValue(variable, p) {
+  const raw = determinantRawValue(variable, p);
+  if (raw === null) return "--";
+  if (variable.format === "pct") return `${number(raw, 1)}%`;
+  if (variable.format === "density") return `${number(raw)} hab/km²`;
+  if (variable.format === "distance") return `${number(raw)} m`;
+  return number(raw);
+}
+
+function pearsonCorrelation(variable, metric) {
+  let n = 0;
+  let sumX = 0;
+  let sumY = 0;
+  let sumXX = 0;
+  let sumYY = 0;
+  let sumXY = 0;
+  state.allFeatures.forEach((feature) => {
+    const p = feature.properties;
+    const x = determinantModelValue(variable, p);
+    const y = Number(p[metric]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    n += 1;
+    sumX += x;
+    sumY += y;
+    sumXX += x * x;
+    sumYY += y * y;
+    sumXY += x * y;
+  });
+  const numerator = n * sumXY - sumX * sumY;
+  const denominator = Math.sqrt((n * sumXX - sumX * sumX) * (n * sumYY - sumY * sumY));
+  return denominator ? numerator / denominator : NaN;
+}
+
+function computeCorrelationRows() {
+  const metric = metricForScenario();
+  return DETERMINANT_VARIABLES.map((variable) => ({
+    ...variable,
+    correlation: pearsonCorrelation(variable, metric),
+  })).sort((a, b) => Math.abs(b.correlation || 0) - Math.abs(a.correlation || 0));
+}
+
+function renderCorrelationChart() {
+  const chart = document.getElementById("correlationChart");
+  const meta = document.getElementById("correlationMeta");
+  if (!chart) return;
+  const rows = computeCorrelationRows();
+  state.correlations = rows;
+  state.correlationByKey = new Map(rows.map((row) => [row.key, row]));
+  if (meta) meta.textContent = `Correlación Pearson (r) con ${metricLabel()}.`;
+  chart.innerHTML = rows
+    .map((row) => {
+      const value = Number(row.correlation);
+      const magnitude = Number.isFinite(value) ? Math.min(1, Math.abs(value)) : 0;
+      const start = value < 0 ? 50 - magnitude * 50 : 50;
+      return `
+        <div class="correlation-row" title="${row.rationale}">
+          <span>${row.label}</span>
+          <i class="correlation-track" aria-hidden="true">
+            <i class="correlation-zero"></i>
+            <i class="correlation-bar" style="--corr-start:${start}%;--corr-width:${magnitude * 50}%;--corr-color:${row.color};"></i>
+          </i>
+          <b>${formatCorrelation(value)}</b>
+        </div>`;
+    })
+    .join("");
 }
 
 function demandBand(p) {
@@ -639,6 +788,22 @@ function recommendationReason(feature) {
   return "Núcleo estructural: cluster LISA significativo o demanda extrema con residuo alto; ayuda a ordenar la red nocturna.";
 }
 
+function determinantTooltipRows(p) {
+  return DETERMINANT_VARIABLES.map((variable) => {
+    const correlation = state.correlationByKey.get(variable.key)?.correlation;
+    return `
+      <span>${variable.shortLabel}</span>
+      <b>${formatDeterminantValue(variable, p)} · r ${formatCorrelation(correlation)}</b>`;
+  }).join("");
+}
+
+function determinantFeatureSummary(p) {
+  return DETERMINANT_VARIABLES.map((variable) => {
+    const correlation = state.correlationByKey.get(variable.key)?.correlation;
+    return `<span><b>${variable.shortLabel}:</b> ${formatDeterminantValue(variable, p)} · r ${formatCorrelation(correlation)}</span>`;
+  }).join("");
+}
+
 function tooltipHtml(p) {
   const feature = state.featureById.get(p.h3_cell_id) || { properties: p };
   const profile = decisionProfile(feature);
@@ -668,6 +833,10 @@ function tooltipHtml(p) {
         <span>Score brecha</span><b>${number(p.score_brecha_cobertura, 2)}</b>
         ${pilotRows}
         ${olsRow}
+      </div>
+      <div class="tooltip-divider">Variables seleccionadas</div>
+      <div class="tooltip-table determinant-tooltip">
+        ${determinantTooltipRows(p)}
       </div>
     </div>`;
 }
@@ -794,6 +963,7 @@ function updateDetailForFeature(feature) {
     ${pilotText}
     LISA: <b>${p.lisa_cluster || "sin dato"}</b>; distancia a Metro: <b>${number(p.dist_metro_m)} m</b>;
     score piloto: <b>${number(p.score_piloto_metro, 2)}</b>; score brecha: <b>${number(p.score_brecha_cobertura, 2)}</b>.
+    <div class="feature-determinants"><strong>Variables locales seleccionadas</strong>${determinantFeatureSummary(p)}</div>
   `);
 }
 
@@ -801,6 +971,13 @@ function updateDetailForSelection() {
   if (!state.selectedIds.size) {
     updateDefaultDetail();
     return;
+  }
+  if (state.selectedIds.size === 1) {
+    const feature = state.featureById.get([...state.selectedIds][0]);
+    if (feature) {
+      updateDetailForFeature(feature);
+      return;
+    }
   }
   const features = [...state.selectedIds].map((id) => state.featureById.get(id)).filter(Boolean);
   const stats = aggregate(features);
@@ -1294,6 +1471,7 @@ function setupControls() {
       refreshH3Styles();
       buildKpis();
       buildClusterList();
+      renderCorrelationChart();
       if (state.selectedIds.size) updateDetailForSelection();
       else updateDefaultDetail();
     });
@@ -1362,6 +1540,7 @@ async function init() {
   fitProjectedBounds(state.projectedBounds, 0.04);
   buildKpis();
   buildClusterList();
+  renderCorrelationChart();
   setupControls();
   setupMapNavigation();
   setLayerVisibility();

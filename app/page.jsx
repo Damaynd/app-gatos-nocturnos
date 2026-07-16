@@ -100,6 +100,17 @@ export default function Home() {
           <span>Rosado: estaciones piloto. Rojo: alimentador nocturno. Estructura usa violeta, rosado, ámbar y rojo según demanda.</span>
         </section>
 
+        <section className="panel-section determinants" aria-label="Variables seleccionadas">
+          <h2>Variables seleccionadas</h2>
+          <p className="determinant-copy">
+            Se priorizan variables interpretables y accionables: dependencia del transporte público, intensidad
+            urbana, perfil de movilidad nocturna y relación con Metro. Se dejan fuera variables redundantes, muy
+            correlacionadas entre sí, con baja señal territorial o poco útiles para decidir operación nocturna.
+          </p>
+          <p className="correlation-meta" id="correlationMeta">Correlación con demanda nocturna.</p>
+          <div id="correlationChart" className="correlation-chart"></div>
+        </section>
+
         <section className="panel-section">
           <h2>Periodo operativo</h2>
           <div className="segmented compact" id="scenarioMode">
