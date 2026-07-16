@@ -855,45 +855,6 @@ input {
   filter: none;
 }
 
-.night-pixels {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.pixel-star {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: var(--accent-3);
-  box-shadow:
-    8px 0 0 rgba(255, 79, 184, 0.55),
-    0 8px 0 rgba(157, 78, 221, 0.45);
-  opacity: 0.52;
-  image-rendering: pixelated;
-}
-
-.star-a {
-  top: 8%;
-  left: 43%;
-}
-
-.star-b {
-  top: 14%;
-  right: 16%;
-}
-
-.star-c {
-  bottom: 18%;
-  left: 54%;
-}
-
-.star-d {
-  bottom: 11%;
-  right: 8%;
-}
-
 .pixel-cat {
   position: absolute;
   width: 98px;

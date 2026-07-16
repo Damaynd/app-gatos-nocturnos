@@ -10,12 +10,6 @@ export default function Home() {
 
   return (
     <main className="app-shell">
-      <div className="night-pixels" aria-hidden="true">
-        <span className="pixel-star star-a"></span>
-        <span className="pixel-star star-b"></span>
-        <span className="pixel-star star-c"></span>
-        <span className="pixel-star star-d"></span>
-      </div>
       <section className="sidebar" aria-label="Panel analítico">
         <header className="brand">
           <PixelCat className="brand-cat" />
