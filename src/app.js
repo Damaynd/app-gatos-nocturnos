@@ -417,10 +417,10 @@ function accessColor(p) {
 }
 
 function structureColor(feature) {
-  return STRUCTURE_COLORS[structureLevel(feature)];
+  return STRUCTURE_COLORS[getStructureLevel(feature)];
 }
 
-function structureLevel(feature) {
+function getStructureLevel(feature) {
   const p = feature.properties;
   const band = demandBand(p);
   const residualQ = quantiles("residuos_ols_h3");
@@ -521,8 +521,9 @@ function styleH3Element(el, feature) {
           ? "lisa"
           : state.mode
       : "context";
+  const currentStructureLevel = state.mode === "structure" && activeKind === "structure" ? getStructureLevel(feature) : "";
   el.dataset.recommendation = activeKind || "context";
-  el.dataset.structureLevel = state.mode === "structure" && activeKind === "structure" ? structureLevel(feature) : "";
+  el.dataset.structureLevel = currentStructureLevel;
   el.dataset.intensity = String(light.level);
   el.setAttribute("vector-effect", "non-scaling-stroke");
 
@@ -536,7 +537,7 @@ function styleH3Element(el, feature) {
     glowEl.setAttribute("fill", color);
     glowEl.setAttribute("stroke", glowForColor(color, 0.92));
     glowEl.dataset.recommendation = activeKind || "context";
-    glowEl.dataset.structureLevel = state.mode === "structure" && activeKind === "structure" ? structureLevel(feature) : "";
+    glowEl.dataset.structureLevel = currentStructureLevel;
     glowEl.dataset.intensity = String(light.level);
     glowEl.setAttribute("vector-effect", "non-scaling-stroke");
     applyLightVars(glowEl, 0.9);
