@@ -56,6 +56,13 @@ const DECISION_COLORS = {
   context: "#14101c",
 };
 
+const STRUCTURE_COLORS = {
+  high: "#9d4edd",
+  veryHigh: "#ff4fb8",
+  extreme: "#ffb703",
+  residual: "#ff3131",
+};
+
 const DECISION_LABELS = {
   pilot: "Piloto Metro nocturno",
   feeder: "Alimentador nocturno",
@@ -409,6 +416,22 @@ function accessColor(p) {
   return "#ff3b30";
 }
 
+function structureColor(feature) {
+  return STRUCTURE_COLORS[structureLevel(feature)];
+}
+
+function structureLevel(feature) {
+  const p = feature.properties;
+  const band = demandBand(p);
+  const residualQ = quantiles("residuos_ols_h3");
+  const residual = Number(p.residuos_ols_h3);
+  const residualHot = Number.isFinite(residual) && Number.isFinite(residualQ.p90) && residual >= residualQ.p90;
+  if (band >= 5 && residualHot) return "residual";
+  if (band >= 5) return "extreme";
+  if (band >= 4) return "veryHigh";
+  return "high";
+}
+
 function fillColor(feature) {
   const p = feature.properties;
   const metric = metricForScenario();
@@ -417,7 +440,7 @@ function fillColor(feature) {
     if (!profile) return DECISION_COLORS.context;
     if (state.mode === "pilot") return profile.pilot ? DECISION_COLORS.pilot : DECISION_COLORS.context;
     if (state.mode === "feeder") return profile.feeder ? DECISION_COLORS.feeder : DECISION_COLORS.context;
-    if (state.mode === "structure") return profile.structure ? DECISION_COLORS.structure : DECISION_COLORS.context;
+    if (state.mode === "structure") return profile.structure ? structureColor(feature) : DECISION_COLORS.context;
     return profile.color;
   }
   if (state.mode === "priority") return PRIORITY_COLORS[p.categoria_prioridad] || "#465057";
@@ -461,7 +484,11 @@ function styleH3Element(el, feature) {
   const isPriority = Number(p.es_celda_prioritaria) === 1;
   const muted = priorityOnly && !(decisionMode ? isVisibleDecision : isPriority);
   const color = fillColor(feature);
-  const light = lightProfile(isVisibleDecision ? (profile?.intensity || demandBand(p)) : 0);
+  const visibleIntensity =
+    state.mode === "structure" && isVisibleDecision
+      ? Math.max(3, demandBand(p))
+      : profile?.intensity || demandBand(p);
+  const light = lightProfile(isVisibleDecision ? visibleIntensity : 0);
   el.setAttribute("fill", color);
   const applyLightVars = (target, alpha = 0.82) => {
     target.style.setProperty("--cell-glow", glowForColor(color, alpha));
@@ -495,6 +522,7 @@ function styleH3Element(el, feature) {
           : state.mode
       : "context";
   el.dataset.recommendation = activeKind || "context";
+  el.dataset.structureLevel = state.mode === "structure" && activeKind === "structure" ? structureLevel(feature) : "";
   el.dataset.intensity = String(light.level);
   el.setAttribute("vector-effect", "non-scaling-stroke");
 
@@ -508,6 +536,7 @@ function styleH3Element(el, feature) {
     glowEl.setAttribute("fill", color);
     glowEl.setAttribute("stroke", glowForColor(color, 0.92));
     glowEl.dataset.recommendation = activeKind || "context";
+    glowEl.dataset.structureLevel = state.mode === "structure" && activeKind === "structure" ? structureLevel(feature) : "";
     glowEl.dataset.intensity = String(light.level);
     glowEl.setAttribute("vector-effect", "non-scaling-stroke");
     applyLightVars(glowEl, 0.9);
@@ -1100,19 +1129,27 @@ function renderLegend() {
   let rows = [];
   if (DECISION_MODES.has(state.mode)) {
     title = state.mode === "decision" ? "Recomendación operativa" : modeTitle();
-    rows = state.mode === "decision"
-      ? [
-          ["Piloto Metro", DECISION_COLORS.pilot, "pilot", 4],
-          ["Alimentador nocturno", DECISION_COLORS.feeder, "feeder", 4],
-          ["Núcleo de demanda", DECISION_COLORS.structure, "structure", 4],
-          ["Contexto / sin foco", DECISION_COLORS.context, "context", 0],
-        ]
-      : [
-          ["Luz alta", DECISION_COLORS[state.mode], state.mode, 3],
-          ["Luz muy alta", DECISION_COLORS[state.mode], state.mode, 4],
-          ["Luz extrema", DECISION_COLORS[state.mode], state.mode, 5],
-          ["Contexto / sin foco", DECISION_COLORS.context, "context", 0],
-        ];
+    if (state.mode === "decision") {
+      rows = [
+        ["Piloto Metro", DECISION_COLORS.pilot, "pilot", 4],
+        ["Alimentador nocturno", DECISION_COLORS.feeder, "feeder", 4],
+        ["Núcleo de demanda", DECISION_COLORS.structure, "structure", 4],
+        ["Contexto / sin foco", DECISION_COLORS.context, "context", 0],
+      ];
+    } else if (state.mode === "structure") {
+      rows = [
+        ["Alta demanda LISA", STRUCTURE_COLORS.high, "structure", 3],
+        ["Muy alta demanda", STRUCTURE_COLORS.veryHigh, "structure", 4],
+        ["Demanda extrema", STRUCTURE_COLORS.extreme, "structure", 5],
+        ["Extrema + residuo alto", STRUCTURE_COLORS.residual, "structure", 5],
+        ["Contexto / sin foco", DECISION_COLORS.context, "context", 0],
+      ];
+    } else {
+      rows = [
+        [state.mode === "pilot" ? "Celdas junto a estaciones piloto" : "Celdas de brecha alimentador", DECISION_COLORS[state.mode], state.mode, 4],
+        ["Contexto / sin foco", DECISION_COLORS.context, "context", 0],
+      ];
+    }
   } else if (state.mode === "priority") {
     title = "Prioridad territorial";
     rows = Object.entries(PRIORITY_COLORS);

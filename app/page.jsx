@@ -96,7 +96,7 @@ export default function Home() {
 
         <section className="decision-brief" aria-label="Lectura operativa">
           <strong>Lectura rápida</strong>
-          <span>Rosado: estaciones piloto. Rojo: alimentador nocturno. Amarillo/violeta: núcleos LISA de demanda.</span>
+          <span>Rosado: estaciones piloto. Rojo: alimentador nocturno. Estructura usa violeta, rosado, ámbar y rojo según demanda.</span>
         </section>
 
         <section className="panel-section">
