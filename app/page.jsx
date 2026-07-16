@@ -22,13 +22,13 @@ export default function Home() {
           <p className="eyebrow">Santiago · H3-8 · DTPM 2024-2025</p>
           <h1>Gatos Nocturnos</h1>
           <p className="lead">
-            Aplicación para visualizar el contexto del transporte público en horarios no operativos de Metro
-            (aprox. 23:00-06:00), y orientar decisiones sobre estaciones piloto, alimentadores nocturnos y núcleos
-            de demanda.
+            Herramienta de análisis territorial para explorar la demanda de transporte público durante el horario no
+            operativo de Metro (aprox. 23:00-06:00) y orientar decisiones sobre estaciones piloto, alimentadores
+            nocturnos y núcleos de demanda.
           </p>
           <p className="project-statement">
-            Proyecto para CC5216 - Ciencia de Datos Geográficos, Universidad de Chile, desarrollado principalmente
-            con apoyo de IA y revisión humana.
+            Proyecto desarrollado para CC5216 - Ciencia de Datos Geográficos, Universidad de Chile. Construido
+            mayoritariamente con apoyo de IA, con curaduría, análisis y revisión humana.
           </p>
         </header>
 
@@ -59,7 +59,7 @@ export default function Home() {
             </button>
             <button data-mode="pilot">Piloto Metro</button>
             <button data-mode="feeder">Alimentador</button>
-            <button data-mode="structure">Estructura demanda</button>
+            <button data-mode="structure">Estructura de demanda</button>
             <button data-mode="lisa">LISA</button>
           </div>
         </section>
@@ -74,7 +74,7 @@ export default function Home() {
           <p className="determinant-copy">
             Se priorizan variables interpretables y accionables: dependencia del transporte público, intensidad
             urbana, perfil de movilidad nocturna y relación con Metro. Se dejan fuera variables redundantes, muy
-            correlacionadas entre sí, con baja señal territorial o poco útiles para decidir operación nocturna.
+            correlacionadas entre sí, con baja señal territorial o poco útiles para decidir la operación nocturna.
           </p>
           <p className="correlation-meta" id="correlationMeta">Correlación con demanda nocturna.</p>
           <div id="correlationChart" className="correlation-chart"></div>

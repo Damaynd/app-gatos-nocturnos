@@ -1,34 +1,38 @@
 # Gatos Nocturnos
 
-Aplicación Next.js para visualizar el contexto del transporte público en horarios no operativos de Metro (aprox. 23:00-06:00), usando celdas H3, corredores OD, estaciones y métricas territoriales en Santiago.
+Gatos Nocturnos es una aplicación Next.js de análisis territorial para explorar la demanda de transporte público en Santiago durante el horario no operativo de Metro (aprox. 23:00-06:00). La app combina celdas H3, corredores origen-destino, estaciones, clusters LISA y métricas territoriales para apoyar decisiones sobre Metro nocturno, alimentadores y núcleos de demanda.
 
-El proyecto fue desarrollado para CC5216 - Ciencia de Datos Geográficos, Universidad de Chile. La mayor parte del desarrollo de la aplicación se realizó con apoyo de herramientas de IA, con curaduría, análisis y revisión humana.
+Proyecto desarrollado para CC5216 - Ciencia de Datos Geográficos, Universidad de Chile. La aplicación fue construida mayoritariamente con apoyo de herramientas de IA, con curaduría, análisis y revisión humana.
 
 ## Objetivo
 
-Gatos Nocturnos busca apoyar la lectura territorial de la demanda nocturna de transporte público cuando Metro no se encuentra operativo. La aplicación cruza demanda estimada, cercanía a estaciones, corredores OD y clusters LISA para orientar tres preguntas de decisión:
+El objetivo del proyecto es transformar datos territoriales y de movilidad nocturna en una lectura operativa para responder tres preguntas de decisión:
 
-- ¿Qué estaciones podrían operar primero en un piloto de Metro nocturno?
-- ¿Dónde convendría implementar alimentadores nocturnos?
+- ¿Qué estaciones deberían considerarse primero para operar en un piloto de Metro nocturno?
+- ¿Dónde convendría implementar servicios alimentadores nocturnos?
 - ¿Dónde se estructura la demanda nocturna más relevante?
+
+La aplicación no busca definir una operación final del sistema de transporte. Su propósito es entregar evidencia exploratoria para priorizar zonas, contrastar hipótesis y comunicar patrones espaciales de forma clara.
 
 ## Lectura de la aplicación
 
 La interfaz principal contiene un mapa H3 y un panel de decisión. Cada vista activa una lectura distinta:
 
-- **Vista ejecutiva:** resume las zonas sugeridas según su rol operativo.
-- **Piloto Metro:** destaca celdas cercanas a estaciones y corredores OD de alta demanda.
+- **Vista ejecutiva:** integra las señales principales y clasifica las zonas sugeridas según su rol operativo.
+- **Piloto Metro:** destaca celdas cercanas a estaciones vinculadas a corredores origen-destino de alta demanda.
 - **Alimentador:** identifica celdas con demanda relevante fuera del radio caminable de Metro.
-- **Estructura demanda:** muestra matices de intensidad para distinguir las celdas más solicitadas.
-- **LISA:** permite revisar patrones de autocorrelación espacial. HH, LH y HL se interpretan como señales activas; LL y las celdas no significativas quedan como contexto sin foco operativo.
+- **Estructura de demanda:** ordena núcleos de demanda por intensidad, señal LISA y residuo alto.
+- **LISA:** permite revisar patrones de autocorrelación espacial. HH, LH y HL se interpretan como señales activas; LL y las celdas no significativas quedan como contexto y no como foco operativo.
 
-Las capas de apoyo permiten activar o desactivar estaciones de Metro, corredores OD, límites comunales y el filtro de zonas sugeridas. También se puede cambiar el escenario entre promedio, día laboral y fin de semana.
+Las capas de apoyo permiten activar o desactivar estaciones de Metro, corredores origen-destino, límites comunales y el filtro de zonas sugeridas. También se puede cambiar el escenario entre promedio, día laboral y fin de semana.
 
-El panel de variables seleccionadas muestra la correlación de cada variable retenida con la demanda nocturna del escenario activo. Estas variables fueron elegidas por su interpretación territorial y operativa; se dejaron fuera campos redundantes, altamente correlacionados entre sí, con baja señal o poco útiles para decidir operación nocturna.
+El panel de variables seleccionadas reporta la correlación de Pearson de cada variable retenida con la demanda nocturna del escenario activo. Las variables se eligieron por su interpretabilidad territorial y utilidad operativa: dependencia del transporte público, intensidad urbana, perfil de movilidad nocturna y relación con Metro. Se excluyeron variables redundantes, altamente colineales, con baja señal territorial o poco accionables para decisiones de operación nocturna.
+
+Al pasar el mouse sobre una celda, la aplicación muestra métricas locales, clasificación LISA, distancia a Metro, puntajes operativos y el valor de las variables seleccionadas. El valor entre paréntesis indica la correlación de esa variable con la demanda nocturna del escenario activo.
 
 ## Datos incluidos
 
-Los datos necesarios para probar la aplicación ya están incluidos en `public/data`. No es necesario ejecutar scripts de preparación para abrir la app localmente.
+Los datos necesarios para probar la aplicación ya están incluidos en `public/data`. No es necesario ejecutar scripts de preparación, descargar archivos adicionales ni configurar credenciales para abrir la app localmente.
 
 Archivos principales:
 
@@ -41,7 +45,8 @@ Archivos principales:
 
 ## Requisitos
 
-- Node.js 20 o superior.
+- Git.
+- Node.js 20.9 o superior.
 - npm, incluido normalmente con Node.js.
 
 ## Instalación
@@ -56,7 +61,7 @@ npm install
 
 ## Ejecutar en desarrollo
 
-Inicia el servidor local:
+Inicia el servidor local de Next.js:
 
 ```bash
 npm run dev
@@ -84,15 +89,23 @@ Para levantar el build compilado:
 npm start
 ```
 
+## Scripts disponibles
+
+- `npm run dev`: inicia el entorno de desarrollo.
+- `npm run build`: compila la aplicación para producción.
+- `npm start`: ejecuta la versión compilada.
+
 ## Estructura del proyecto
 
 ```text
-app/              Página y metadata de Next.js.
-src/app.js        Lógica de visualización, capas y métricas del mapa.
-src/styles.css    Estilos de la interfaz.
-public/data/      Datos geográficos y métricas usados por la aplicación.
+app/                 Página principal, layout y componentes de Next.js.
+src/app.js           Lógica de visualización, capas, métricas y eventos del mapa.
+src/config.js        Configuración de colores, variables, escenarios y umbrales.
+src/styles.css       Estilos de la interfaz.
+public/data/         Datos geográficos y métricas usados por la aplicación.
+src/prepare_app_data.py  Script usado para preparar los datos de la app.
 ```
 
 ## Consideraciones
 
-La aplicación es una herramienta exploratoria de apoyo a la decisión. Sus resultados deben interpretarse como insumos analíticos para priorización territorial, no como una definición final de operación del sistema de transporte.
+Gatos Nocturnos es una herramienta exploratoria de apoyo a la decisión. Sus resultados deben interpretarse como insumos analíticos para priorización territorial, no como una definición final de operación del sistema de transporte.

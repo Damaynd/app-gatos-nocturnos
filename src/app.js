@@ -657,10 +657,10 @@ function recommendationReason(feature) {
   const profile = decisionProfile(feature);
   if (!profile) return "Contexto urbano: no aparece como prioridad operativa bajo los criterios actuales.";
   if (profile.kind === "pilot") {
-    return `Estación piloto sugerida: ${p.pilot_station_name || "estación cercana"} concentra señal de corredor OD top ${p.pilot_corridor_rank || "--"} y demanda nocturna alta.`;
+    return `Estación piloto sugerida: ${p.pilot_station_name || "estación cercana"} concentra señal del corredor OD priorizado #${p.pilot_corridor_rank || "--"} y demanda nocturna alta.`;
   }
   if (profile.kind === "feeder") {
-    return "Candidato a alimentador nocturno: demanda relevante fuera del radio caminable de 1000 m de Metro, con brecha de cobertura y score alto.";
+    return "Candidato a alimentador nocturno: demanda relevante fuera del radio caminable de 1000 m de Metro, con brecha de cobertura y puntaje alto.";
   }
   return "Núcleo estructural: cluster LISA significativo o demanda extrema con residuo alto; ayuda a ordenar la red nocturna.";
 }
@@ -706,8 +706,8 @@ function tooltipHtml(p) {
         <span>Población censal</span><b>${number(p.poblacion_total)}</b>
         <span>Distancia Metro</span><b>${number(p.dist_metro_m)} m</b>
         <span>LISA</span><b>${p.lisa_cluster || "Sin dato"}</b>
-        <span>Score piloto</span><b>${number(p.score_piloto_metro, 2)}</b>
-        <span>Score brecha</span><b>${number(p.score_brecha_cobertura, 2)}</b>
+        <span>Puntaje piloto</span><b>${number(p.score_piloto_metro, 2)}</b>
+        <span>Puntaje brecha</span><b>${number(p.score_brecha_cobertura, 2)}</b>
         ${pilotRows}
         ${olsRow}
       </div>
@@ -782,7 +782,7 @@ function decisionSummaryText(mode, features) {
   const structureCount = featuresForMode("structure").length;
   if (mode === "pilot") {
     return `
-      Prioriza celdas de alta demanda alrededor de estaciones a 800 m o menos de corredores OD top 10.
+      Prioriza celdas de alta demanda alrededor de estaciones a 800 m o menos de los 10 corredores OD de mayor demanda.
       Útil para escoger qué estaciones deberían abrir primero en un piloto nocturno.
     `;
   }
@@ -839,7 +839,7 @@ function updateDetailForFeature(feature) {
     ${recommendationReason(feature)}
     ${pilotText}
     LISA: <b>${p.lisa_cluster || "sin dato"}</b>; distancia a Metro: <b>${number(p.dist_metro_m)} m</b>;
-    score piloto: <b>${number(p.score_piloto_metro, 2)}</b>; score brecha: <b>${number(p.score_brecha_cobertura, 2)}</b>.
+    puntaje piloto: <b>${number(p.score_piloto_metro, 2)}</b>; puntaje brecha: <b>${number(p.score_brecha_cobertura, 2)}</b>.
     <div class="feature-determinants"><strong>Variables locales seleccionadas</strong>${determinantFeatureSummary(p)}</div>
   `);
 }
@@ -1290,7 +1290,7 @@ function selectPilotStation(stationId) {
   const nearShare = stats.celdas ? (stats.cerca1000 / stats.celdas) * 100 : 0;
   updateDetailForAggregate(`Estación piloto · ${features[0].properties.pilot_station_name || "foco sugerido"}`, stats, `
     Zona de referencia alrededor de la estación sugerida. <b>${pct(nearShare, 1)}</b> de las celdas está a
-    1000 m o menos de una estación, con demanda asociada al corredor OD top
+    1000 m o menos de una estación, con demanda asociada al corredor OD priorizado
     <b>${features[0].properties.pilot_corridor_rank || "--"}</b>.
   `);
 }
