@@ -1,39 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-
-function PixelCat({ className = "" }) {
-  return (
-    <svg className={`pixel-cat ${className}`} viewBox="0 0 24 24" aria-hidden="true" shapeRendering="crispEdges">
-      <rect className="cat-glow" x="4" y="5" width="16" height="15" />
-      <rect className="cat-outline" x="5" y="7" width="14" height="11" />
-      <rect className="cat-outline" x="4" y="10" width="16" height="7" />
-      <rect className="cat-outline" x="4" y="5" width="3" height="6" />
-      <rect className="cat-outline" x="17" y="5" width="3" height="6" />
-      <rect className="cat-outline" x="6" y="3" width="2" height="3" />
-      <rect className="cat-outline" x="16" y="3" width="2" height="3" />
-      <rect className="cat-face" x="6" y="8" width="12" height="9" />
-      <rect className="cat-face" x="5" y="11" width="14" height="5" />
-      <rect className="cat-ear-inner" x="6" y="6" width="1" height="3" />
-      <rect className="cat-ear-inner" x="17" y="6" width="1" height="3" />
-      <rect className="cat-stripe" x="9" y="8" width="1" height="3" />
-      <rect className="cat-stripe" x="12" y="8" width="1" height="4" />
-      <rect className="cat-stripe" x="15" y="8" width="1" height="3" />
-      <rect className="cat-eye" x="7" y="12" width="3" height="1" />
-      <rect className="cat-eye" x="8" y="11" width="1" height="3" />
-      <rect className="cat-eye-core" x="8" y="12" width="1" height="1" />
-      <rect className="cat-eye" x="14" y="12" width="3" height="1" />
-      <rect className="cat-eye" x="15" y="11" width="1" height="3" />
-      <rect className="cat-eye-core" x="15" y="12" width="1" height="1" />
-      <rect className="cat-nose" x="11" y="15" width="2" height="1" />
-      <rect className="cat-mouth" x="12" y="16" width="1" height="2" />
-      <rect className="cat-whisker" x="2" y="14" width="4" height="1" />
-      <rect className="cat-whisker" x="18" y="14" width="4" height="1" />
-      <rect className="cat-whisker" x="4" y="16" width="2" height="1" />
-      <rect className="cat-whisker" x="18" y="16" width="2" height="1" />
-    </svg>
-  );
-}
+import PixelCat from "./components/PixelCat";
 
 export default function Home() {
   useEffect(() => {
@@ -186,8 +154,7 @@ export default function Home() {
           </div>
           <div className="detail-grid" id="detailGrid"></div>
           <div className="detail-text" id="detailText"></div>
-          <div className="selection-actions">
-            <button id="clearSelection">Limpiar selección</button>
+          <div className="detail-actions">
             <button id="zoomPriority">Ver sugeridas</button>
           </div>
         </aside>

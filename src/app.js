@@ -1,138 +1,17 @@
-const DATA = {
-  h3: "data/h3_cells.geojson",
-  comunas: "data/comunas.geojson",
-  stations: "data/metro_stations.geojson",
-  metro: "data/metro_segments.geojson",
-  od: "data/od_corridors.geojson",
-  summary: "data/summary.json",
-};
-
-const PRIORITY_COLORS = {
-  "Baja demanda local": "#17121f",
-  "Demanda con acceso Metro": "#ff4fb8",
-  "Brecha fuera de 1000 m": "#ffd166",
-  "Candidato piloto Metro": "#9d4edd",
-  "Brecha alimentador nocturno": "#ff3b30",
-  "Estación crítica": "#f72585",
-};
-
-const LISA_COLORS = {
-  HH: "#ff3b30",
-  LL: "#3a2f4f",
-  HL: "#9d4edd",
-  LH: "#ffd166",
-  "No significativo": "#211a2c",
-};
-
-const METRO_COLORS = {
-  L1: "#e2231a",
-  L2: "#f4c430",
-  L3: "#8f5a2a",
-  L4: "#2368b4",
-  L4A: "#35a8e0",
-  L5: "#34a853",
-  L6: "#8d4bb3",
-  L7: "#888888",
-};
-
-const OD_COLORS = [
-  "#ff4d6d",
-  "#ff3b30",
-  "#ffb703",
-  "#ff4fb8",
-  "#f72585",
-  "#9d4edd",
-  "#9b5de5",
-  "#f15bb5",
-  "#ffd166",
-  "#c77dff",
-  "#ff8fab",
-];
-
-const DECISION_COLORS = {
-  pilot: "#ff4fb8",
-  feeder: "#ff3131",
-  structure: "#ffb703",
-  context: "#14101c",
-};
-
-const STRUCTURE_COLORS = {
-  high: "#9d4edd",
-  veryHigh: "#ff4fb8",
-  extreme: "#ffb703",
-  residual: "#ff3131",
-};
-
-const DECISION_LABELS = {
-  pilot: "Piloto Metro nocturno",
-  feeder: "Alimentador nocturno",
-  structure: "Estructura de demanda",
-};
-
-const DECISION_MODES = new Set(["decision", "pilot", "feeder", "structure"]);
-const PILOT_STATION_MAX_CORRIDOR_M = 800;
-const PILOT_CELL_MAX_STATION_M = 500;
-
-const DETERMINANT_VARIABLES = [
-  {
-    key: "beneficiarios_tp",
-    label: "Usuarios TP censales",
-    shortLabel: "Usuarios TP",
-    format: "number",
-    color: "#ff4fb8",
-    rationale: "Masa potencial de personas que ya dependen del transporte público.",
-  },
-  {
-    key: "pct_transporte_publico_h3",
-    label: "Uso TP habitual",
-    shortLabel: "TP habitual",
-    format: "pct",
-    color: "#ffd166",
-    rationale: "Dependencia modal del transporte público en la celda.",
-  },
-  {
-    key: "densidad_poblacion_h3",
-    label: "Densidad poblacional",
-    shortLabel: "Densidad",
-    format: "density",
-    transform: "log1p",
-    color: "#9d4edd",
-    rationale: "Intensidad urbana y masa de viajes posibles.",
-  },
-  {
-    key: "pct_vivienda_departamento_h3",
-    label: "Vivienda en depto.",
-    shortLabel: "Vivienda depto.",
-    format: "pct",
-    color: "#c77dff",
-    rationale: "Proxy de centralidad, compacidad y mezcla urbana.",
-  },
-  {
-    key: "pct_personas_18_44_h3",
-    label: "Población 18-44",
-    shortLabel: "18-44 años",
-    format: "pct",
-    color: "#f72585",
-    rationale: "Grupo etario con alta movilidad laboral, social y recreativa.",
-  },
-  {
-    key: "pct_ocupaciones_servicios_operativas_h3",
-    label: "Servicios/operativas",
-    shortLabel: "Serv./oper.",
-    format: "pct",
-    color: "#ff3131",
-    rationale: "Actividades laborales con mayor probabilidad de desplazamiento fuera de horario.",
-  },
-  {
-    key: "dist_metro_m",
-    label: "Cercanía a Metro",
-    shortLabel: "Distancia Metro",
-    format: "distance",
-    transform: "inverseLog1p",
-    color: "#ffb703",
-    rationale: "Relación operativa con estaciones existentes y factibilidad de piloto.",
-  },
-];
+import {
+  DATA,
+  DECISION_COLORS,
+  DECISION_LABELS,
+  DECISION_MODES,
+  DETERMINANT_VARIABLES,
+  LISA_COLORS,
+  METRO_COLORS,
+  OD_COLORS,
+  PILOT_CELL_MAX_STATION_M,
+  PILOT_STATION_MAX_CORRIDOR_M,
+  PRIORITY_COLORS,
+  STRUCTURE_COLORS,
+} from "./config.js";
 
 const state = {
   mode: "decision",
@@ -140,7 +19,6 @@ const state = {
   opacity: 0.68,
   odLimit: 10,
   activeODRank: null,
-  selectedIds: new Set(),
   featureById: new Map(),
   elementById: new Map(),
   glowElementById: new Map(),
@@ -626,7 +504,6 @@ function styleH3Element(el, feature) {
   const p = feature.properties;
   const profile = decisionProfile(feature);
   const glowEl = state.glowElementById.get(p.h3_cell_id);
-  const isSelected = state.selectedIds.has(p.h3_cell_id);
   const priorityOnly = document.getElementById("togglePriorityOnly")?.checked;
   const decisionMode = DECISION_MODES.has(state.mode) || state.mode === "lisa";
   const isVisibleDecision = featureMatchesMode(feature);
@@ -653,13 +530,13 @@ function styleH3Element(el, feature) {
   applyLightVars(el, isVisibleDecision ? 0.82 : 0.22);
   if (decisionMode) {
     el.setAttribute("fill-opacity", muted ? 0.02 : isVisibleDecision ? state.opacity : 0.055);
-    el.setAttribute("stroke", isSelected ? "#f9f871" : isVisibleDecision ? glowForColor(color, 0.82) : "rgba(255,79,184,0.12)");
-    el.setAttribute("stroke-width", isSelected ? "2.5" : isVisibleDecision ? "0.82" : "0.22");
+    el.setAttribute("stroke", isVisibleDecision ? glowForColor(color, 0.82) : "rgba(255,79,184,0.12)");
+    el.setAttribute("stroke-width", isVisibleDecision ? "0.82" : "0.22");
     el.setAttribute("opacity", muted ? "0.08" : "1");
   } else {
     el.setAttribute("fill-opacity", muted ? 0.035 : state.opacity);
-    el.setAttribute("stroke", isSelected ? "#ffd166" : isPriority ? "rgba(255,143,171,0.72)" : "rgba(255,79,184,0.2)");
-    el.setAttribute("stroke-width", isSelected ? "2.4" : isPriority ? "0.7" : "0.35");
+    el.setAttribute("stroke", isPriority ? "rgba(255,143,171,0.72)" : "rgba(255,79,184,0.2)");
+    el.setAttribute("stroke-width", isPriority ? "0.7" : "0.35");
     el.setAttribute("opacity", muted ? "0.16" : "1");
   }
   const activeKind =
@@ -967,31 +844,6 @@ function updateDetailForFeature(feature) {
   `);
 }
 
-function updateDetailForSelection() {
-  if (!state.selectedIds.size) {
-    updateDefaultDetail();
-    return;
-  }
-  if (state.selectedIds.size === 1) {
-    const feature = state.featureById.get([...state.selectedIds][0]);
-    if (feature) {
-      updateDetailForFeature(feature);
-      return;
-    }
-  }
-  const features = [...state.selectedIds].map((id) => state.featureById.get(id)).filter(Boolean);
-  const stats = aggregate(features);
-  const nearShare = stats.celdas ? (stats.cerca1000 / stats.celdas) * 100 : 0;
-  const pilotCount = features.filter((feature) => decisionProfile(feature)?.pilot).length;
-  const feederCount = features.filter((feature) => decisionProfile(feature)?.feeder).length;
-  const structureCount = features.filter((feature) => decisionProfile(feature)?.structure).length;
-  updateDetailForAggregate(`Selección · ${stats.celdas} celdas`, stats, `
-    En la selección, <b>${pct(nearShare, 1)}</b> de las celdas está a 1000 m o menos de una estación.
-    Lectura operativa: <b>${pilotCount}</b> piloto Metro, <b>${feederCount}</b> alimentador nocturno y
-    <b>${structureCount}</b> estructura de demanda.
-  `);
-}
-
 function renderH3(features) {
   groups.h3Glow.replaceChildren();
   groups.h3.replaceChildren();
@@ -1034,14 +886,7 @@ function renderH3(features) {
     path.addEventListener("mouseleave", () => {
       styleH3Element(path, feature);
       hideTooltip();
-      if (state.selectedIds.size) updateDetailForSelection();
-    });
-    path.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (state.selectedIds.has(p.h3_cell_id)) state.selectedIds.delete(p.h3_cell_id);
-      else state.selectedIds.add(p.h3_cell_id);
-      styleH3Element(path, feature);
-      updateDetailForSelection();
+      updateDefaultDetail();
     });
     groups.h3Glow.appendChild(glowPath);
     groups.h3.appendChild(path);
@@ -1297,7 +1142,7 @@ function setupMapNavigation() {
     state.suppressClick = false;
   }, true);
   svg.addEventListener("click", () => {
-    if (!state.selectedIds.size) updateDefaultDetail();
+    updateDefaultDetail();
   });
 }
 
@@ -1425,9 +1270,6 @@ function boundsForFeatures(features) {
 function selectFeature(id) {
   const feature = state.featureById.get(id);
   if (!feature) return;
-  state.selectedIds.clear();
-  state.selectedIds.add(id);
-  refreshH3Styles();
   fitProjectedBounds(boundsForFeatures([feature]), 0.38);
   updateDetailForFeature(feature);
 }
@@ -1437,11 +1279,14 @@ function selectPilotStation(stationId) {
     (feature) => feature.properties.pilot_station_id === stationId && featureMatchesMode(feature, "pilot"),
   );
   if (!features.length) return;
-  state.selectedIds.clear();
-  features.forEach((feature) => state.selectedIds.add(feature.properties.h3_cell_id));
-  refreshH3Styles();
   fitProjectedBounds(boundsForFeatures(features), 0.34);
-  updateDetailForSelection();
+  const stats = aggregate(features);
+  const nearShare = stats.celdas ? (stats.cerca1000 / stats.celdas) * 100 : 0;
+  updateDetailForAggregate(`Estación piloto · ${features[0].properties.pilot_station_name || "foco sugerido"}`, stats, `
+    Zona de referencia alrededor de la estación sugerida. <b>${pct(nearShare, 1)}</b> de las celdas está a
+    1000 m o menos de una estación, con demanda asociada al corredor OD top
+    <b>${features[0].properties.pilot_corridor_rank || "--"}</b>.
+  `);
 }
 
 function zoomPriority() {
@@ -1458,8 +1303,7 @@ function setupControls() {
       refreshH3Styles();
       buildKpis();
       buildClusterList();
-      if (state.selectedIds.size) updateDetailForSelection();
-      else updateDefaultDetail();
+      updateDefaultDetail();
     });
   });
 
@@ -1472,8 +1316,7 @@ function setupControls() {
       buildKpis();
       buildClusterList();
       renderCorrelationChart();
-      if (state.selectedIds.size) updateDetailForSelection();
-      else updateDefaultDetail();
+      updateDefaultDetail();
     });
   });
 
@@ -1498,11 +1341,6 @@ function setupControls() {
     });
   });
 
-  document.getElementById("clearSelection").addEventListener("click", () => {
-    state.selectedIds.clear();
-    refreshH3Styles();
-    updateDefaultDetail();
-  });
   document.getElementById("zoomPriority").addEventListener("click", zoomPriority);
 }
 

@@ -260,7 +260,7 @@ input {
 }
 
 .segmented button,
-.selection-actions button {
+.detail-actions button {
   min-height: 38px;
   border: 1px solid rgba(255, 79, 184, 0.21);
   border-radius: 7px;
@@ -274,7 +274,7 @@ input {
 }
 
 .segmented button:hover,
-.selection-actions button:hover {
+.detail-actions button:hover {
   transform: translateY(-1px);
   border-color: rgba(255, 209, 102, 0.74);
   box-shadow: 0 0 0 1px rgba(255, 79, 184, 0.08);
@@ -775,9 +775,9 @@ input {
   font-size: 11px;
 }
 
-.selection-actions {
+.detail-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   margin-top: 14px;
 }
@@ -897,6 +897,10 @@ input {
   fill: #17101f;
 }
 
+.cat-body {
+  fill: #120b1a;
+}
+
 .cat-ear-inner {
   fill: #ff4fb8;
 }
@@ -921,7 +925,8 @@ input {
 }
 
 .cat-mouth,
-.cat-whisker {
+.cat-whisker,
+.cat-paw {
   fill: #c77dff;
 }
 
