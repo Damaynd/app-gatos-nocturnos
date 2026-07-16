@@ -75,6 +75,7 @@ const state = {
   selectedIds: new Set(),
   featureById: new Map(),
   elementById: new Map(),
+  glowElementById: new Map(),
   allFeatures: [],
   odFeatures: [],
   stationFeatures: [],
@@ -90,6 +91,7 @@ const svg = document.getElementById("mapSvg");
 const viewport = document.getElementById("mapViewport");
 const groups = {
   comunas: document.getElementById("comunaGroup"),
+  h3Glow: document.getElementById("h3GlowGroup"),
   h3: document.getElementById("h3Group"),
   od: document.getElementById("odGroup"),
   metro: document.getElementById("metroGroup"),
@@ -451,6 +453,7 @@ function fillColor(feature) {
 function styleH3Element(el, feature) {
   const p = feature.properties;
   const profile = decisionProfile(feature);
+  const glowEl = state.glowElementById.get(p.h3_cell_id);
   const isSelected = state.selectedIds.has(p.h3_cell_id);
   const priorityOnly = document.getElementById("togglePriorityOnly")?.checked;
   const decisionMode = DECISION_MODES.has(state.mode) || state.mode === "lisa";
@@ -460,13 +463,18 @@ function styleH3Element(el, feature) {
   const color = fillColor(feature);
   const light = lightProfile(isVisibleDecision ? (profile?.intensity || demandBand(p)) : 0);
   el.setAttribute("fill", color);
-  el.style.setProperty("--cell-glow", glowForColor(color, isVisibleDecision ? 0.82 : 0.22));
-  el.style.setProperty("--cell-brightness-min", light.minBrightness);
-  el.style.setProperty("--cell-brightness-max", light.maxBrightness);
-  el.style.setProperty("--cell-glow-tight", light.tightGlow);
-  el.style.setProperty("--cell-glow-wide", light.wideGlow);
-  el.style.setProperty("--cell-glow-far", light.farGlow);
-  el.style.setProperty("--cell-pulse", light.pulse);
+  const applyLightVars = (target, alpha = 0.82) => {
+    target.style.setProperty("--cell-glow", glowForColor(color, alpha));
+    target.style.setProperty("--cell-brightness-min", light.minBrightness);
+    target.style.setProperty("--cell-brightness-max", light.maxBrightness);
+    target.style.setProperty("--cell-glow-tight", light.tightGlow);
+    target.style.setProperty("--cell-glow-wide", light.wideGlow);
+    target.style.setProperty("--cell-glow-far", light.farGlow);
+    target.style.setProperty("--cell-pulse", light.pulse);
+    target.style.setProperty("--halo-opacity-min", (0.14 + light.level * 0.035).toFixed(2));
+    target.style.setProperty("--halo-opacity-max", (0.28 + light.level * 0.055).toFixed(2));
+  };
+  applyLightVars(el, isVisibleDecision ? 0.82 : 0.22);
   if (decisionMode) {
     el.setAttribute("fill-opacity", muted ? 0.02 : isVisibleDecision ? state.opacity : 0.055);
     el.setAttribute("stroke", isSelected ? "#f9f871" : isVisibleDecision ? glowForColor(color, 0.82) : "rgba(255,79,184,0.12)");
@@ -489,6 +497,48 @@ function styleH3Element(el, feature) {
   el.dataset.recommendation = activeKind || "context";
   el.dataset.intensity = String(light.level);
   el.setAttribute("vector-effect", "non-scaling-stroke");
+
+  if (glowEl) {
+    const setGlowAnimation = (attributeName, values) => {
+      const anim = glowEl.querySelector(`[data-anim="${attributeName}"]`);
+      if (!anim) return;
+      anim.setAttribute("values", values);
+      anim.setAttribute("dur", light.pulse);
+    };
+    glowEl.setAttribute("fill", color);
+    glowEl.setAttribute("stroke", glowForColor(color, 0.92));
+    glowEl.dataset.recommendation = activeKind || "context";
+    glowEl.dataset.intensity = String(light.level);
+    glowEl.setAttribute("vector-effect", "non-scaling-stroke");
+    applyLightVars(glowEl, 0.9);
+    if (decisionMode && isVisibleDecision && !muted) {
+      const opacityMin = (0.12 + light.level * 0.035).toFixed(2);
+      const opacityMax = (0.34 + light.level * 0.065).toFixed(2);
+      const fillMin = (0.08 + light.level * 0.02).toFixed(2);
+      const fillMax = (0.2 + light.level * 0.04).toFixed(2);
+      const strokeMin = (0.18 + light.level * 0.06).toFixed(2);
+      const strokeMax = (0.42 + light.level * 0.08).toFixed(2);
+      const widthMin = (3.4 + light.level * 1.25).toFixed(2);
+      const widthMax = (6.8 + light.level * 1.95).toFixed(2);
+      glowEl.setAttribute("fill-opacity", fillMin);
+      glowEl.setAttribute("stroke-opacity", strokeMin);
+      glowEl.setAttribute("stroke-width", widthMin);
+      glowEl.setAttribute("opacity", "1");
+      setGlowAnimation("opacity", `${opacityMin};${opacityMax};${opacityMin}`);
+      setGlowAnimation("fill-opacity", `${fillMin};${fillMax};${fillMin}`);
+      setGlowAnimation("stroke-opacity", `${strokeMin};${strokeMax};${strokeMin}`);
+      setGlowAnimation("stroke-width", `${widthMin};${widthMax};${widthMin}`);
+    } else {
+      glowEl.setAttribute("fill-opacity", "0");
+      glowEl.setAttribute("stroke-opacity", "0");
+      glowEl.setAttribute("stroke-width", "0");
+      glowEl.setAttribute("opacity", "0");
+      setGlowAnimation("opacity", "0;0;0");
+      setGlowAnimation("fill-opacity", "0;0;0");
+      setGlowAnimation("stroke-opacity", "0;0;0");
+      setGlowAnimation("stroke-width", "0;0;0");
+    }
+  }
 }
 
 function lineColor(line) {
@@ -736,16 +786,36 @@ function updateDetailForSelection() {
 }
 
 function renderH3(features) {
+  groups.h3Glow.replaceChildren();
   groups.h3.replaceChildren();
+  state.featureById.clear();
+  state.elementById.clear();
+  state.glowElementById.clear();
   features.forEach((feature) => {
     const p = feature.properties;
+    const d = pathFromGeometry(feature.geometry);
+    const glowPath = createSvg("path", {
+      class: "h3-cell-glow",
+      d,
+      "data-id": p.h3_cell_id,
+    });
+    ["opacity", "fill-opacity", "stroke-opacity", "stroke-width"].forEach((attributeName) => {
+      glowPath.appendChild(createSvg("animate", {
+        "data-anim": attributeName,
+        attributeName,
+        dur: "3.2s",
+        repeatCount: "indefinite",
+        values: "0;0;0",
+      }));
+    });
     const path = createSvg("path", {
       class: "h3-cell",
-      d: pathFromGeometry(feature.geometry),
+      d,
       "data-id": p.h3_cell_id,
     });
     state.featureById.set(p.h3_cell_id, feature);
     state.elementById.set(p.h3_cell_id, path);
+    state.glowElementById.set(p.h3_cell_id, glowPath);
     styleH3Element(path, feature);
     path.addEventListener("mouseenter", (event) => {
       path.setAttribute("stroke", "#ffd166");
@@ -766,6 +836,7 @@ function renderH3(features) {
       styleH3Element(path, feature);
       updateDetailForSelection();
     });
+    groups.h3Glow.appendChild(glowPath);
     groups.h3.appendChild(path);
   });
 }

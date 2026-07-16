@@ -157,6 +157,7 @@ export default function Home() {
             <rect id="mapBackground" x="0" y="0" width="100%" height="100%"></rect>
             <g id="mapViewport">
               <g id="comunaGroup"></g>
+              <g id="h3GlowGroup"></g>
               <g id="h3Group"></g>
               <g id="odGroup"></g>
               <g id="metroGroup"></g>

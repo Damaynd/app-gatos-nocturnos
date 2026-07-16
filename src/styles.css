@@ -313,12 +313,14 @@ input {
 }
 
 #map.dragging .h3-cell,
+#map.dragging .h3-cell-glow,
 #map.dragging .od-corridor,
 #map.dragging .station-dot {
   cursor: grabbing;
 }
 
-#map.dragging .h3-cell {
+#map.dragging .h3-cell,
+#map.dragging .h3-cell-glow {
   transition: none;
   filter: none;
   animation-play-state: paused;
@@ -359,10 +361,26 @@ input {
     opacity 120ms ease;
 }
 
+.h3-cell-glow {
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  mix-blend-mode: screen;
+  opacity: 0;
+  filter:
+    brightness(var(--cell-brightness-min, 1))
+    drop-shadow(0 0 var(--cell-glow-wide, 8px) var(--cell-glow))
+    drop-shadow(0 0 var(--cell-glow-far, 18px) var(--cell-glow));
+}
+
 .h3-cell[data-recommendation="pilot"],
 .h3-cell[data-recommendation="feeder"],
 .h3-cell[data-recommendation="structure"],
-.h3-cell[data-recommendation="lisa"] {
+.h3-cell[data-recommendation="lisa"],
+.h3-cell-glow[data-recommendation="pilot"],
+.h3-cell-glow[data-recommendation="feeder"],
+.h3-cell-glow[data-recommendation="structure"],
+.h3-cell-glow[data-recommendation="lisa"] {
   filter:
     brightness(var(--cell-brightness-min, 1))
     drop-shadow(0 0 var(--cell-glow-tight, 2px) var(--cell-glow))
@@ -370,7 +388,15 @@ input {
   animation: cell-neon-pulse var(--cell-pulse, 4s) ease-in-out infinite alternate;
 }
 
-.h3-cell[data-intensity="5"] {
+.h3-cell-glow[data-recommendation="pilot"],
+.h3-cell-glow[data-recommendation="feeder"],
+.h3-cell-glow[data-recommendation="structure"],
+.h3-cell-glow[data-recommendation="lisa"] {
+  animation-name: cell-halo-pulse;
+}
+
+.h3-cell[data-intensity="5"],
+.h3-cell-glow[data-intensity="5"] {
   filter:
     brightness(var(--cell-brightness-min, 1.18))
     drop-shadow(0 0 var(--cell-glow-tight, 3px) var(--cell-glow))
@@ -395,6 +421,21 @@ input {
       brightness(var(--cell-brightness-max, 1.2))
       drop-shadow(0 0 var(--cell-glow-wide, 8px) var(--cell-glow))
       drop-shadow(0 0 var(--cell-glow-far, 18px) var(--cell-glow));
+  }
+}
+
+@keyframes cell-halo-pulse {
+  0% {
+    filter:
+      brightness(var(--cell-brightness-min, 1))
+      drop-shadow(0 0 var(--cell-glow-wide, 8px) var(--cell-glow))
+      drop-shadow(0 0 var(--cell-glow-far, 18px) var(--cell-glow));
+  }
+  100% {
+    filter:
+      brightness(var(--cell-brightness-max, 1.2))
+      drop-shadow(0 0 var(--cell-glow-far, 18px) var(--cell-glow))
+      drop-shadow(0 0 30px var(--cell-glow));
   }
 }
 
