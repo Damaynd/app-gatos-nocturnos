@@ -54,8 +54,9 @@ export default function Home() {
           <p className="eyebrow">Santiago · H3-8 · DTPM 2024-2025</p>
           <h1>Gatos Nocturnos</h1>
           <p className="lead">
-            Mapa ejecutivo para priorizar estaciones de Metro nocturno, alimentadores y nodos de demanda fuera del
-            horario operativo.
+            Aplicación para visualizar el contexto del transporte público en horarios no operativos de Metro
+            (aprox. 23:00-06:00), y orientar decisiones sobre estaciones piloto, alimentadores nocturnos y núcleos
+            de demanda.
           </p>
           <p className="project-statement">
             Proyecto para Ciencia de Datos Geográficos, desarrollado principalmente con apoyo de IA y revisión humana.

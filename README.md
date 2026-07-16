@@ -1,6 +1,6 @@
 # Gatos Nocturnos
 
-Aplicación Next.js para explorar la demanda nocturna no Metro en Santiago con celdas H3, corredores OD, estaciones y métricas territoriales.
+Aplicación Next.js para visualizar el contexto del transporte público en horarios no operativos de Metro (aprox. 23:00-06:00), usando celdas H3, corredores OD, estaciones y métricas territoriales en Santiago.
 
 Este proyecto fue desarrollado para el curso de Ciencia de Datos Geográficos. La mayor parte del desarrollo de la aplicación se realizó con apoyo de herramientas de IA, con curaduría, análisis y revisión humana.
 

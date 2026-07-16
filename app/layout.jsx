@@ -3,7 +3,7 @@ import "../src/styles.css";
 export const metadata = {
   title: "Gatos Nocturnos | Ciencia de Datos Geográficos",
   description:
-    "Aplicación de análisis territorial de demanda nocturna no Metro, desarrollada mayoritariamente con apoyo de IA para el curso de Ciencia de Datos Geográficos.",
+    "Aplicación para visualizar el contexto del transporte público en horarios no operativos de Metro, aprox. 23:00-06:00, desarrollada mayoritariamente con apoyo de IA para el curso de Ciencia de Datos Geográficos.",
 };
 
 export default function RootLayout({ children }) {
