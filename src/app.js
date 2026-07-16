@@ -694,7 +694,7 @@ function recommendationReason(feature) {
   const profile = decisionProfile(feature);
   if (!profile) return "Contexto urbano: no aparece como prioridad operativa bajo los criterios actuales.";
   if (profile.kind === "pilot") {
-    return `Estación piloto sugerida: ${p.pilot_station_name || "estación cercana"} concentra señal del corredor OD priorizado #${p.pilot_corridor_rank || "--"} y demanda nocturna alta.`;
+    return `Estación piloto sugerida: ${p.pilot_station_name || "estación cercana"} concentra señal del corredor origen-destino priorizado #${p.pilot_corridor_rank || "--"} y demanda nocturna alta.`;
   }
   if (profile.kind === "feeder") {
     return "Candidato a alimentador nocturno: demanda relevante fuera del radio caminable de 1000 m de Metro, con brecha de cobertura y puntaje alto.";
@@ -728,7 +728,7 @@ function tooltipHtml(p) {
   const pilotRows = p.pilot_station_name
     ? `
         <span>Estación piloto</span><b>${p.pilot_station_name} (${p.pilot_station_lines || "--"})</b>
-        <span>Corredor OD</span><b>#${p.pilot_corridor_rank || "--"} · ${number(p.pilot_corridor_trips, 1)} viajes/día</b>
+        <span>Corredor origen-destino</span><b>#${p.pilot_corridor_rank || "--"} · ${number(p.pilot_corridor_trips, 1)} viajes/día</b>
         <span>Distancia a estación</span><b>${number(p.pilot_station_distance_m)} m</b>
       `
     : "";
@@ -741,10 +741,10 @@ function tooltipHtml(p) {
         <span>Recomendación</span><b>${profile?.label || "Contexto"}</b>
         <span>${metricLabel()}</span><b>${number(p[metric], 1)}</b>
         <span>Población censal</span><b>${number(p.poblacion_total)}</b>
-        <span>Distancia Metro</span><b>${number(p.dist_metro_m)} m</b>
+        <span>Distancia a Metro</span><b>${number(p.dist_metro_m)} m</b>
         <span>LISA</span><b>${p.lisa_cluster || "Sin dato"}</b>
-        <span>Puntaje piloto</span><b>${number(p.score_piloto_metro, 2)}</b>
-        <span>Puntaje brecha</span><b>${number(p.score_brecha_cobertura, 2)}</b>
+        <span>Puntaje piloto Metro</span><b>${number(p.score_piloto_metro, 2)}</b>
+        <span>Puntaje brecha cobertura</span><b>${number(p.score_brecha_cobertura, 2)}</b>
         ${pilotRows}
         ${olsRow}
       </div>
@@ -773,7 +773,10 @@ function hideTooltip() {
 
 function aggregate(features) {
   const rows = features.map((f) => f.properties);
-  const sum = (key) => rows.reduce((acc, p) => acc + (Number(p[key]) || 0), 0);
+  const sum = (key, predicate = () => true) =>
+    rows.reduce((acc, p) => acc + (predicate(p) ? Number(p[key]) || 0 : 0), 0);
+  const isMetroOpportunity = (p) => Number(p.demanda_potencial_metro) > 0;
+  const isFeederGap = (p) => Number(p.demanda_potencial_alimentador) > 0;
   const demandMetric = metricForScenario();
   const demandWeight = sum(demandMetric);
   const weightedDist = demandWeight
@@ -786,8 +789,8 @@ function aggregate(features) {
     viajes_total_dia_promedio: sum("viajes_total_dia_promedio"),
     viajes_total_dia_laboral: sum("viajes_total_dia_laboral"),
     viajes_total_dia_fin_semana: sum("viajes_total_dia_fin_semana"),
-    demanda_potencial_metro: sum("demanda_potencial_metro"),
-    demanda_potencial_alimentador: sum("demanda_potencial_alimentador"),
+    demanda_potencial_metro: sum(demandMetric, isMetroOpportunity),
+    demanda_potencial_alimentador: sum(demandMetric, isFeederGap),
     estaciones: sum("n_estaciones_riel"),
     dist_metro_m_pond_viajes: weightedDist,
     cerca1000: rows.filter((p) => Number(p.tiene_metro_1000m) === 1).length,
@@ -803,10 +806,10 @@ function updateDetailForAggregate(title, stats, contextText) {
   document.getElementById("detailGrid").innerHTML = [
     metricBlock(stats.celdas, "celdas H3-8"),
     metricBlock(stats.poblacion, "población censal"),
-    metricBlock(stats.beneficiarios_tp, "usuarios TP censales"),
+    metricBlock(stats.beneficiarios_tp, "usuarios transporte público"),
     metricBlock(stats[metricForScenario()] ?? stats.viajes_total_dia_promedio, metricLabel(), 1),
-    metricBlock(stats.demanda_potencial_metro, "demanda cerca de Metro", 1),
-    metricBlock(stats.demanda_potencial_alimentador, "demanda de brecha", 1),
+    metricBlock(stats.demanda_potencial_metro, "viajes cerca de Metro", 1),
+    metricBlock(stats.demanda_potencial_alimentador, "viajes fuera de 1 km", 1),
     metricBlock(stats.estaciones, "estaciones en celdas"),
     metricBlock(stats.dist_metro_m_pond_viajes, "distancia Metro ponderada", 0),
   ].join("");
@@ -831,7 +834,7 @@ function decisionSummaryText(mode, features) {
   }
   if (mode === "structure") {
     return `
-      Muestra núcleos LISA HH/LH/HL y casos extremos p99 con residuo alto.
+      Muestra núcleos LISA HH/LH/HL y casos del 1% superior de demanda con residuo alto.
       El matiz del color expresa intensidad de demanda para ordenar las celdas más solicitadas.
     `;
   }
@@ -844,7 +847,8 @@ function decisionSummaryText(mode, features) {
   return `
     <b>${features.length}</b> zonas sugeridas. Hay <b>${pilotCount}</b> con señal de piloto Metro,
     <b>${feederCount}</b> con señal de alimentador y <b>${structureCount}</b> con señal estructural
-    LISA/demanda. Las señales pueden superponerse; el color muestra la acción principal.
+    por LISA o demanda. Las señales pueden superponerse; el color muestra la acción principal.
+    Los viajes cerca de Metro y fuera de 1 km se calculan con el escenario activo.
   `;
 }
 
@@ -869,14 +873,14 @@ function updateDetailForFeature(feature) {
   const stats = aggregate([feature]);
   const profile = decisionProfile(feature);
   const pilotText = p.pilot_station_name
-    ? ` Estación asociada: <b>${p.pilot_station_name}</b> (${p.pilot_station_lines || "--"}), corredor OD #<b>${p.pilot_corridor_rank || "--"}</b> a <b>${number(p.pilot_station_distance_m)} m</b>.`
+    ? ` Estación asociada: <b>${p.pilot_station_name}</b> (${p.pilot_station_lines || "--"}), corredor origen-destino #<b>${p.pilot_corridor_rank || "--"}</b> a <b>${number(p.pilot_station_distance_m)} m</b>.`
     : "";
   updateDetailForAggregate(`${p.comuna || "Santiago"} · H3 ${p.h3_short}`, stats, `
     <b>${profile?.label || p.categoria_prioridad_label || p.categoria_prioridad || "Contexto"}.</b>
     ${recommendationReason(feature)}
     ${pilotText}
     LISA: <b>${p.lisa_cluster || "sin dato"}</b>; distancia a Metro: <b>${number(p.dist_metro_m)} m</b>;
-    puntaje piloto: <b>${number(p.score_piloto_metro, 2)}</b>; puntaje brecha: <b>${number(p.score_brecha_cobertura, 2)}</b>.
+    puntaje piloto Metro: <b>${number(p.score_piloto_metro, 2)}</b>; puntaje brecha de cobertura: <b>${number(p.score_brecha_cobertura, 2)}</b>.
     <div class="feature-determinants"><strong>Variables locales seleccionadas</strong>${determinantFeatureSummary(p)}</div>
   `);
 }
@@ -993,7 +997,7 @@ function renderStations(features) {
       const pilotRows = selected
         ? `
           <span>Piloto sugerido</span><b>Sí</b>
-          <span>Corredor OD</span><b>#${p.corredor_mas_cercano_rank} · ${p.corredor_mas_cercano_comunal || "--"}</b>
+          <span>Corredor origen-destino</span><b>#${p.corredor_mas_cercano_rank} · ${p.corredor_mas_cercano_comunal || "--"}</b>
           <span>Viajes corredor</span><b>${number(p.viajes_corredor_mas_cercano, 1)} diarios</b>
           <span>Distancia corredor</span><b>${number(p.distancia_min_corredor_m)} m</b>
         `
@@ -1251,7 +1255,7 @@ function renderLegend() {
       ];
     } else {
       rows = [
-        [state.mode === "pilot" ? "Celdas junto a estaciones piloto" : "Celdas de brecha alimentador", DECISION_COLORS[state.mode], state.mode, 4],
+        [state.mode === "pilot" ? "Celdas junto a estaciones piloto" : "Celdas fuera de 1 km", DECISION_COLORS[state.mode], state.mode, 4],
         ["Contexto / sin foco", DECISION_COLORS.context, "context", 0],
       ];
     }
@@ -1372,7 +1376,7 @@ function selectPilotStation(stationId) {
   const nearShare = stats.celdas ? (stats.cerca1000 / stats.celdas) * 100 : 0;
   updateDetailForAggregate(`Estación piloto · ${features[0].properties.pilot_station_name || "foco sugerido"}`, stats, `
     Zona de referencia alrededor de la estación sugerida. <b>${pct(nearShare, 1)}</b> de las celdas está a
-    1000 m o menos de una estación, con demanda asociada al corredor OD priorizado
+    1000 m o menos de una estación, con demanda asociada al corredor origen-destino priorizado
     <b>${features[0].properties.pilot_corridor_rank || "--"}</b>.
   `);
 }

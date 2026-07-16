@@ -26,6 +26,8 @@ La interfaz principal contiene un mapa H3 y un panel de decisión. Cada vista ac
 
 Las capas de apoyo permiten activar o desactivar estaciones de Metro, corredores origen-destino, límites comunales y el filtro de zonas sugeridas. También se puede cambiar el escenario entre promedio, día laboral y fin de semana.
 
+Los indicadores principales usan el escenario activo. **Viajes cerca de Metro** suma la demanda nocturna en celdas con acceso a Metro o asociadas a estaciones candidatas. **Viajes fuera de 1 km** suma la demanda en celdas fuera del radio caminable de Metro, donde la lectura apunta a brechas de cobertura y posibles alimentadores nocturnos.
+
 El panel de variables seleccionadas reporta la correlación de Pearson de cada variable retenida con la demanda nocturna del escenario activo. Las variables se eligieron por su interpretabilidad territorial y utilidad operativa: dependencia del transporte público, intensidad urbana, perfil de movilidad nocturna y relación con Metro. Se excluyeron variables redundantes, altamente colineales, con baja señal territorial o poco accionables para decisiones de operación nocturna.
 
 Al pasar el mouse sobre una celda, la aplicación muestra métricas locales, clasificación LISA, distancia a Metro, puntajes operativos y el valor de las variables seleccionadas. El valor entre paréntesis indica la correlación de esa variable con la demanda nocturna del escenario activo.

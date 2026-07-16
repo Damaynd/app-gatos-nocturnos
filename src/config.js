@@ -77,7 +77,7 @@ export const PILOT_CELL_MAX_STATION_M = 500;
 export const DETERMINANT_VARIABLES = [
   {
     key: "beneficiarios_tp",
-    label: "Usuarios TP censales",
+    label: "Usuarios transporte público",
     shortLabel: "Usuarios TP",
     format: "number",
     color: "#ff4fb8",
@@ -85,7 +85,7 @@ export const DETERMINANT_VARIABLES = [
   },
   {
     key: "pct_transporte_publico_h3",
-    label: "Uso TP habitual",
+    label: "Uso transporte público habitual",
     shortLabel: "TP habitual",
     format: "pct",
     color: "#ffd166",
@@ -127,7 +127,7 @@ export const DETERMINANT_VARIABLES = [
   {
     key: "dist_metro_m",
     label: "Cercanía a Metro",
-    shortLabel: "Distancia Metro",
+    shortLabel: "Distancia a Metro",
     format: "distance",
     transform: "inverseLog1p",
     color: "#ffb703",

@@ -39,15 +39,15 @@ export default function Home() {
           </article>
           <article>
             <span id="kpiPriorityPeople">--</span>
-            <small>viajes priorizados</small>
+            <small>viajes en zonas sugeridas</small>
           </article>
-          <article>
+          <article title="Demanda nocturna en celdas con acceso a Metro o asociadas a estaciones candidatas.">
             <span id="kpiPriorityTp">--</span>
-            <small>potencial Metro</small>
+            <small>viajes cerca de Metro</small>
           </article>
-          <article>
+          <article title="Demanda nocturna en celdas fuera del radio caminable de 1 km de Metro, asociadas a brecha de cobertura.">
             <span id="kpiPriorityDemand">--</span>
-            <small>brecha alimentador</small>
+            <small>viajes fuera de 1 km</small>
           </article>
         </section>
 
@@ -66,7 +66,7 @@ export default function Home() {
 
         <section className="decision-brief" aria-label="Lectura operativa">
           <strong>Lectura rápida</strong>
-          <span>Rosado: estaciones piloto. Rojo: alimentador nocturno. Estructura usa violeta, rosado, ámbar y rojo según demanda.</span>
+          <span>Rosado: estaciones piloto. Rojo: alimentador nocturno. “Cerca de Metro” suma demanda en celdas con acceso o estación candidata; “fuera de 1 km” suma brechas de cobertura.</span>
         </section>
 
         <section className="panel-section determinants" aria-label="Variables seleccionadas">
@@ -97,7 +97,7 @@ export default function Home() {
             <input type="checkbox" id="toggleMetro" defaultChecked /> Estaciones Metro
           </label>
           <label>
-            <input type="checkbox" id="toggleOD" defaultChecked /> Corredores OD
+            <input type="checkbox" id="toggleOD" defaultChecked /> Corredores origen-destino
           </label>
           <label>
             <input type="checkbox" id="toggleComunas" defaultChecked /> Límites comunales
@@ -111,7 +111,7 @@ export default function Home() {
             <button data-od-limit="30">Top 30</button>
           </div>
           <label className="slider-label">
-            Intensidad H3
+            Opacidad H3
             <input type="range" id="opacitySlider" min="20" max="90" defaultValue="68" />
           </label>
         </section>
