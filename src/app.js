@@ -53,6 +53,8 @@ const fmt1 = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 1 });
 const SVG_NS = "http://www.w3.org/2000/svg";
 const PROJ_SCALE = 100000;
 const PROJ_COS = Math.cos((-33.45 * Math.PI) / 180);
+const HOME_VIEW_PAD = 0.04;
+const PAN_VIEW_PAD = 0.2;
 
 function number(value, decimals = 0) {
   const n = Number(value);
@@ -1103,16 +1105,17 @@ function clamp(value, min, max) {
 
 function clampViewBox(viewBox) {
   if (!state.projectedBounds || !viewBox) return viewBox;
-  const home = viewBoxFromBounds(state.projectedBounds, 0.04);
+  const home = viewBoxFromBounds(state.projectedBounds, HOME_VIEW_PAD);
+  const panBounds = viewBoxFromBounds(state.projectedBounds, PAN_VIEW_PAD);
   const minW = home.w * 0.025;
   const minH = home.h * 0.025;
   const w = clamp(viewBox.w, minW, home.w);
   const h = clamp(viewBox.h, minH, home.h);
-  const maxX = home.x + home.w - w;
-  const maxY = home.y + home.h - h;
+  const maxX = panBounds.x + panBounds.w - w;
+  const maxY = panBounds.y + panBounds.h - h;
   return {
-    x: maxX <= home.x ? home.x : clamp(viewBox.x, home.x, maxX),
-    y: maxY <= home.y ? home.y : clamp(viewBox.y, home.y, maxY),
+    x: maxX <= panBounds.x ? panBounds.x : clamp(viewBox.x, panBounds.x, maxX),
+    y: maxY <= panBounds.y ? panBounds.y : clamp(viewBox.y, panBounds.y, maxY),
     w,
     h,
   };
