@@ -140,6 +140,7 @@ export default function Home() {
               <g id="comunaGroup"></g>
               <g id="h3GlowGroup"></g>
               <g id="h3Group"></g>
+              <g id="comunaBoundaryGroup"></g>
               <g id="odGroup"></g>
               <g id="metroGroup"></g>
               <g id="stationGroup"></g>

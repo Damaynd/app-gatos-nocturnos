@@ -39,6 +39,7 @@ const svg = document.getElementById("mapSvg");
 const viewport = document.getElementById("mapViewport");
 const groups = {
   comunas: document.getElementById("comunaGroup"),
+  comunaBoundaries: document.getElementById("comunaBoundaryGroup"),
   h3Glow: document.getElementById("h3GlowGroup"),
   h3: document.getElementById("h3Group"),
   od: document.getElementById("odGroup"),
@@ -929,6 +930,7 @@ function renderH3(features) {
 
 function renderComunas(features) {
   groups.comunas.replaceChildren();
+  groups.comunaBoundaries.replaceChildren();
   features.forEach((feature) => {
     groups.comunas.appendChild(
       createSvg("path", {
@@ -938,7 +940,7 @@ function renderComunas(features) {
       }),
     );
   });
-  groups.comunas.appendChild(
+  groups.comunaBoundaries.appendChild(
     createSvg("path", {
       class: "comuna-boundary",
       d: boundaryPathFromFeatures(features),
@@ -1073,13 +1075,15 @@ function refreshH3Styles() {
 }
 
 function setLayerVisibility() {
-  groups.comunas.style.display = document.getElementById("toggleComunas").checked ? "" : "none";
+  const showComunas = document.getElementById("toggleComunas").checked;
+  groups.comunas.style.display = showComunas ? "" : "none";
+  groups.comunaBoundaries.style.display = showComunas ? "" : "none";
   groups.metro.style.display = document.getElementById("toggleMetro").checked ? "" : "none";
   groups.stations.style.display = document.getElementById("toggleMetro").checked ? "" : "none";
   groups.od.style.display = document.getElementById("toggleOD").checked ? "" : "none";
 }
 
-function fitProjectedBounds(bounds, pad = 0.06) {
+function viewBoxFromBounds(bounds, pad = 0.06) {
   const rect = svg.getBoundingClientRect();
   const aspect = rect.width / Math.max(rect.height, 1);
   let width = bounds.maxX - bounds.minX;
@@ -1090,11 +1094,37 @@ function fitProjectedBounds(bounds, pad = 0.06) {
   height *= 1 + pad * 2;
   if (width / height > aspect) height = width / aspect;
   else width = height * aspect;
-  state.viewBox = { x: cx - width / 2, y: cy - height / 2, w: width, h: height };
+  return { x: cx - width / 2, y: cy - height / 2, w: width, h: height };
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function clampViewBox(viewBox) {
+  if (!state.projectedBounds || !viewBox) return viewBox;
+  const home = viewBoxFromBounds(state.projectedBounds, 0.04);
+  const minW = home.w * 0.025;
+  const minH = home.h * 0.025;
+  const w = clamp(viewBox.w, minW, home.w);
+  const h = clamp(viewBox.h, minH, home.h);
+  const maxX = home.x + home.w - w;
+  const maxY = home.y + home.h - h;
+  return {
+    x: maxX <= home.x ? home.x : clamp(viewBox.x, home.x, maxX),
+    y: maxY <= home.y ? home.y : clamp(viewBox.y, home.y, maxY),
+    w,
+    h,
+  };
+}
+
+function fitProjectedBounds(bounds, pad = 0.06) {
+  state.viewBox = viewBoxFromBounds(bounds, pad);
   applyViewBox();
 }
 
 function applyViewBox() {
+  state.viewBox = clampViewBox(state.viewBox);
   const v = state.viewBox;
   svg.setAttribute("viewBox", `${v.x} ${v.y} ${v.w} ${v.h}`);
 }
@@ -1177,6 +1207,9 @@ function setupMapNavigation() {
   window.addEventListener("pointerup", finishDrag);
   window.addEventListener("pointercancel", finishDrag);
   window.addEventListener("blur", finishDrag);
+  window.addEventListener("resize", () => {
+    applyViewBox();
+  });
   svg.addEventListener("lostpointercapture", () => {
     state.drag = null;
     mapEl.classList.remove("dragging");
