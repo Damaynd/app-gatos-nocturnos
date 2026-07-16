@@ -123,6 +123,40 @@ function pathFromGeometry(geometry) {
   return "";
 }
 
+function polygonRings(geometry) {
+  if (geometry.type === "Polygon") return geometry.coordinates;
+  if (geometry.type === "MultiPolygon") return geometry.coordinates.flat();
+  return [];
+}
+
+function boundaryPathFromFeatures(features) {
+  const segments = new Map();
+  const snap = (value) => Math.round(value / 2);
+  const pointKey = ([x, y]) => `${snap(x)},${snap(y)}`;
+  const segmentKey = (a, b) => {
+    const ak = pointKey(a);
+    const bk = pointKey(b);
+    return ak < bk ? `${ak}|${bk}` : `${bk}|${ak}`;
+  };
+
+  features.forEach((feature) => {
+    polygonRings(feature.geometry).forEach((ring) => {
+      const points = ring.map(project);
+      for (let index = 1; index < points.length; index += 1) {
+        const a = points[index - 1];
+        const b = points[index];
+        if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.5) continue;
+        const key = segmentKey(a, b);
+        if (!segments.has(key)) segments.set(key, { a, b });
+      }
+    });
+  });
+
+  return Array.from(segments.values())
+    .map(({ a, b }) => `M${a[0].toFixed(2)},${a[1].toFixed(2)}L${b[0].toFixed(2)},${b[1].toFixed(2)}`)
+    .join(" ");
+}
+
 function pointFromGeometry(geometry) {
   return project(geometry.coordinates);
 }
@@ -898,12 +932,19 @@ function renderComunas(features) {
   features.forEach((feature) => {
     groups.comunas.appendChild(
       createSvg("path", {
-        class: "comuna-path",
+        class: "comuna-fill",
         d: pathFromGeometry(feature.geometry),
         "vector-effect": "non-scaling-stroke",
       }),
     );
   });
+  groups.comunas.appendChild(
+    createSvg("path", {
+      class: "comuna-boundary",
+      d: boundaryPathFromFeatures(features),
+      "vector-effect": "non-scaling-stroke",
+    }),
+  );
 }
 
 function renderMetro(features) {
@@ -1068,6 +1109,10 @@ function eventToSvgPoint(event) {
 
 function setupMapNavigation() {
   const mapEl = document.getElementById("map");
+  const preventNativeMapDrag = (event) => event.preventDefault();
+  svg.setAttribute("draggable", "false");
+  svg.addEventListener("dragstart", preventNativeMapDrag);
+  svg.addEventListener("selectstart", preventNativeMapDrag);
   svg.addEventListener("wheel", (event) => {
     event.preventDefault();
     const [mx, my] = eventToSvgPoint(event);
@@ -1083,6 +1128,7 @@ function setupMapNavigation() {
 
   svg.addEventListener("pointerdown", (event) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
     const rect = svg.getBoundingClientRect();
     state.drag = {
       startClientX: event.clientX,
